@@ -1,3 +1,27 @@
 {
-  "recommendations": ["Vue.volar"]
+  "recommendations": [
+    // Vue 开发
+    "Vue.volar",
+
+    // Rust / Tauri 开发
+    "rust-lang.rust-analyzer",
+    "tauri-apps.tauri-vscode",
+
+    // Tailwind CSS / DaisyUI
+    "bradlc.vscode-tailwindcss",
+
+    // 图标库支持
+    "antfu.iconify",
+
+    // 代码质量
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "usernamehw.errorlens",
+
+    // 开发效率
+    "formulahendry.auto-rename-tag",
+    "eamodio.gitlens",
+    "Gruntfuggly.todo-tree",
+    "aaron-bond.better-comments"
+  ]
 }

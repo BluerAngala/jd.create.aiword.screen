@@ -2,7 +2,7 @@
 name = "tauri-vue-template"
 version = "0.1.0"
 description = "Tauri + Vue + DaisyUI 项目模板"
-authors = ["you"]
+authors = ["BluerAngala <new-ai@foxmail.com>"]
 edition = "2021"
 
 [lib]

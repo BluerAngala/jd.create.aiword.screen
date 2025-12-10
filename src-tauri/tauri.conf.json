@@ -34,9 +34,12 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "licenseFile": "LICENSE.txt",
     "windows": {
       "nsis": {
-        "installMode": "currentUser"
+        "installMode": "currentUser",
+        "languages": ["SimpChinese"],
+        "displayLanguageSelector": false
       }
     }
   }
