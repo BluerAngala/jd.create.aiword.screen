@@ -1,0 +1,9 @@
+@import "tailwindcss";
+@plugin "daisyui" {
+  themes: all;
+}
+
+/* 自定义全局样式 */
+body {
+  min-height: 100vh;
+}
