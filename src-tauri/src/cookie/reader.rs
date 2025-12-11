@@ -76,6 +76,9 @@ pub fn get_chrome_profiles() -> Result<Vec<ChromeProfile>, CookieError> {
         }
     }
 
+    // 过滤掉 Default 配置文件，只保留用户创建的配置文件
+    profiles.retain(|p| p.id != "Default");
+
     // 按名称排序
     profiles.sort_by(|a, b| a.name.cmp(&b.name));
 

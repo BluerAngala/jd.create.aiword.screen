@@ -161,7 +161,7 @@ function handleRefresh() {
         <Icon icon="mdi:refresh" :class="{ 'animate-spin': isLoading || loading }" />
       </button>
     </div>
-    <div v-show="expanded" class="collapse-content px-3 pb-2">
+    <div v-if="expanded" class="px-3 pb-2">
       <!-- 空状态 -->
       <div v-if="browsers.length === 0 && !isLoading && !loading" class="text-center py-2 text-base-content/60">
         <p class="text-xs">未检测到 Chrome 浏览器配置文件</p>
@@ -171,21 +171,32 @@ function handleRefresh() {
         <span class="loading loading-spinner loading-sm"></span>
       </div>
       <!-- 浏览器列表 -->
-      <div v-else class="space-y-1">
+      <div v-else class="space-y-2">
         <div
           v-for="browser in browsers"
           :key="browser.id"
-          class="flex items-center gap-2 p-2 rounded cursor-pointer text-sm"
-          :class="[selectedId === browser.id ? 'bg-primary/10' : 'hover:bg-base-200', isFetchingCookie ? 'opacity-50 pointer-events-none' : '']"
+          class="flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all"
+          :class="[
+            selectedId === browser.id
+              ? 'bg-primary/10 border-primary'
+              : 'border-base-300 hover:bg-base-200 hover:border-base-content/20',
+            isFetchingCookie ? 'opacity-50 pointer-events-none' : '',
+          ]"
           @click="handleSelect(browser)"
         >
-          <span class="truncate flex-1">{{ browser.name }}</span>
-          <span v-if="browser.jdAccount?.isLoggedIn" class="text-xs text-success">
-            {{ browser.jdAccount.nickname }}
-          </span>
-          <span v-else-if="browser.jdAccount" class="text-xs text-base-content/50">
-            {{ browser.jdAccount.nickname }}
-          </span>
+          <Icon icon="mdi:account-circle" class="text-2xl text-base-content/40" />
+          <div class="flex-1 min-w-0">
+            <div class="font-medium text-sm truncate">{{ browser.name }}</div>
+            <div v-if="browser.jdAccount?.isLoggedIn" class="text-xs text-success flex items-center gap-1">
+              <Icon icon="mdi:check-circle" class="text-xs" />
+              {{ browser.jdAccount.nickname }}
+            </div>
+            <div v-else-if="browser.jdAccount" class="text-xs text-base-content/50">
+              {{ browser.jdAccount.nickname }}
+            </div>
+            <div v-else class="text-xs text-base-content/40">点击获取登录状态</div>
+          </div>
+          <Icon v-if="selectedId === browser.id" icon="mdi:check" class="text-primary" />
         </div>
       </div>
     </div>

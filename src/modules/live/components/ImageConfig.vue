@@ -30,7 +30,7 @@ function updateSize(key: 'width' | 'height', value: number) {
       <Icon icon="mdi:image" class="text-lg" />
       <span class="text-sm font-medium">图片设置</span>
     </div>
-    <div v-show="expanded" class="collapse-content px-3 pb-2">
+    <div v-if="expanded" class="px-3 pb-2">
       <div class="flex items-center gap-4">
         <div class="flex items-center gap-2">
           <span class="text-xs text-base-content/60">宽度:</span>

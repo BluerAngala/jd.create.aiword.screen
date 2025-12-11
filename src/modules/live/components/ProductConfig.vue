@@ -176,7 +176,7 @@ function handleGenerateTitles(id: string) {
       </button>
       <input ref="fileInput" type="file" accept=".xlsx,.xls" class="hidden" @change="handleFileChange" />
     </div>
-    <div v-show="expanded" class="collapse-content px-3 pb-2">
+    <div v-if="expanded" class="px-3 pb-2">
       <div v-if="products.length === 0" class="text-center py-2 text-base-content/60 text-xs">
         暂无商品，请导入 xlsx 商品文件（第一列标题必须是 ID）
       </div>

@@ -52,7 +52,7 @@ watch(
       <span class="text-sm font-medium flex-1">执行日志</span>
       <span class="text-xs text-base-content/50">{{ logs.length }} 条</span>
     </div>
-    <div v-show="expanded" class="collapse-content px-3 pb-2">
+    <div v-if="expanded" class="px-3 pb-2">
       <div v-if="logs.length === 0" class="text-center py-2 text-base-content/60 text-xs">
         暂无日志
       </div>

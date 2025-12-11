@@ -225,7 +225,7 @@ function handleCountdownComplete() {
   min-height: 0;
 }
 
-.settings-accordion :deep(.collapse.collapse-open .collapse-content) {
+.settings-accordion :deep(.collapse.collapse-open > div:last-child) {
   flex: 1;
   overflow-y: auto;
 }
