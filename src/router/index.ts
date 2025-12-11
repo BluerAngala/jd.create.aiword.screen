@@ -5,8 +5,8 @@ import type { RouteRecordRaw } from 'vue-router'
 const coreRoutes: RouteRecordRaw[] = [
   {
     path: '/',
-    name: 'Home',
-    component: () => import('@/views/Home.vue'),
+    name: 'LiveAssistant',
+    component: () => import('@/modules/live/views/LiveAssistant.vue'),
   },
 ]
 

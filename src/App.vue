@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { RouterView, RouterLink, useRoute } from 'vue-router'
+import { ref } from 'vue'
+import { RouterView, useRoute } from 'vue-router'
+import { Icon } from '@iconify/vue'
 import { ThemeSelector, ToastContainer } from '@/core/components'
 import { initLogger } from '@/core/composables'
-import { appConfig, navItems } from '@/config/app.config'
+import { appConfig } from '@/config/app.config'
+import { AnnouncementBar, SettingsModal, useLiveStore } from '@/modules/live'
 
 // === 可选模块（不需要可注释掉）===
 import { LoginModal, useAuthStore } from '@/modules/auth'
@@ -12,45 +15,55 @@ const authStore = useAuthStore()
 initLogger()
 
 const route = useRoute()
+const liveStore = useLiveStore()
 
-// 过滤启用的导航项
-const enabledNavItems = navItems.filter((item) => item.enabled)
+// 公告内容
+const announcement = ref('欢迎使用京东直播助手，请先选择浏览器并配置商品信息。')
+
+// 设置弹窗
+const showSettings = ref(false)
 
 // 是否显示导航栏（投屏内容页面隐藏）
 const showNavbar = () => !route.path.startsWith('/screen-content')
 </script>
 
 <template>
-  <div class="min-h-screen bg-base-200">
+  <div class="h-screen flex flex-col bg-base-200">
     <!-- 导航栏 -->
-    <div v-if="showNavbar()" class="navbar bg-base-100 shadow-lg">
+    <div v-if="showNavbar()" class="navbar bg-base-100 shadow-lg px-4 shrink-0 gap-2">
+      <!-- 主题选择 -->
+      <ThemeSelector />
+      <!-- 公告栏 -->
       <div class="flex-1">
-        <span class="text-xl font-bold px-4">{{ appConfig.name }}</span>
+        <AnnouncementBar :content="announcement" />
       </div>
-      <div class="flex-none gap-2">
-        <ul class="menu menu-horizontal px-1">
-          <li v-for="item in enabledNavItems" :key="item.path">
-            <RouterLink :to="item.path" :class="{ active: route.path === item.path }">
-              {{ item.label }}
-            </RouterLink>
-          </li>
-        </ul>
-        <ThemeSelector />
-        <!-- 登录状态（启用 auth 模块时显示） -->
-        <button
-          v-if="appConfig.features.auth && authStore.isLoggedIn"
-          class="btn btn-ghost btn-sm"
-          @click="authStore.logout()"
-        >
-          退出
-        </button>
-      </div>
+      <!-- 设置按钮 -->
+      <button class="btn btn-ghost btn-sm" @click="showSettings = true">
+        <Icon icon="mdi:cog" class="text-lg" />
+        软件设置
+      </button>
+      <!-- 退出登录 -->
+      <button
+        v-if="appConfig.features.auth && authStore.isLoggedIn"
+        class="btn btn-sm bg-red-500 hover:bg-red-600 text-white border-none"
+        @click="authStore.logout()"
+      >
+        退出登录
+      </button>
     </div>
 
     <!-- 主内容区 -->
-    <main :class="route.path.startsWith('/screen-content') ? '' : 'container mx-auto p-8 max-w-4xl'">
+    <main class="flex-1 overflow-hidden">
       <RouterView />
     </main>
+
+    <!-- 设置弹窗 -->
+    <SettingsModal
+      :visible="showSettings"
+      :settings="liveStore.settings"
+      @update:visible="showSettings = $event"
+      @save="liveStore.saveSettings"
+    />
 
     <!-- 登录弹窗（启用 auth 模块且未登录时显示） -->
     <LoginModal v-if="appConfig.features.auth && !authStore.isLoggedIn" />

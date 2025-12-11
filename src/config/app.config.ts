@@ -20,6 +20,4 @@ export const appConfig = {
  * 导航菜单配置
  * enabled: false 或删除整行即可隐藏
  */
-export const navItems = [
-  { path: '/', label: '首页', enabled: true },
-]
+export const navItems: { path: string; label: string; enabled: boolean }[] = []
