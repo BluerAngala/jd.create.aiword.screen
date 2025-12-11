@@ -2055,7 +2055,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "jd-create-aiword-screen"
+name = "jd-live-assistant"
 version = "0.1.0"
 dependencies = [
  "chromiumoxide",

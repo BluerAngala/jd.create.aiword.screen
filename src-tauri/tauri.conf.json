@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Tauri Vue Template",
-  "version": "../Cargo.toml",
-  "identifier": "com.app.tauri-vue-template",
+  "productName": "京东直播助手",
+  "version": "0.1.0",
+  "identifier": "com.app.jd-live-assistant",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:5173",
@@ -13,7 +13,7 @@
     "withGlobalTauri": false,
     "windows": [
       {
-        "title": "Tauri Vue Template",
+        "title": "京东直播助手",
         "width": 1080,
         "height": 700,
         "resizable": true,

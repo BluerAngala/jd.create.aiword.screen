@@ -1,12 +1,12 @@
 [package]
-name = "jd-create-aiword-screen"
+name = "jd-live-assistant"
 version = "0.1.0"
-description = "京东新建直播间+AI话术+商品投屏"
+description = "京东直播助手"
 authors = ["BluerAngala <new-ai@foxmail.com>"]
 edition = "2021"
 
 [lib]
-name = "jd_create_aiword_screen_lib"
+name = "jd_live_assistant_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

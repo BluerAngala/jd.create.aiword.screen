@@ -5,7 +5,7 @@
 
 export const appConfig = {
   // 应用名称
-  name: 'Tauri Vue Template',
+  name: '京东直播助手',
 
   // 功能开关
   features: {
@@ -22,11 +22,4 @@ export const appConfig = {
  */
 export const navItems = [
   { path: '/', label: '首页', enabled: true },
-  { path: '/demo', label: 'Tauri', enabled: true },
-  { path: '/animation', label: '动画', enabled: true },
-  { path: '/icons', label: '图标', enabled: true },
-  { path: '/hooks', label: 'Hooks', enabled: true },
-  // === 以下为业务模块，不需要可设为 false ===
-  { path: '/cookie', label: 'Cookie', enabled: true },
-  { path: '/screen', label: '投屏', enabled: true },
 ]

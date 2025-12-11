@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    jd_create_aiword_screen_lib::run()
+    jd_live_assistant_lib::run()
 }
