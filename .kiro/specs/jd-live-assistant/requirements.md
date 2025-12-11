@@ -41,10 +41,12 @@
 
 #### 验收标准
 
-1. WHEN 用户进入浏览器列表区域 THEN 直播助手 SHALL 显示本地 Chrome 浏览器列表
-2. WHEN 用户选择一个浏览器 THEN 直播助手 SHALL 获取该浏览器中京东域名的 Cookie
-3. WHEN Cookie 获取成功 THEN 直播助手 SHALL 显示已登录的京东账号昵称
-4. WHEN Cookie 获取失败 THEN 直播助手 SHALL 显示错误提示信息
+1. WHEN 用户进入浏览器列表区域 THEN 直播助手 SHALL 自动扫描并显示本地所有 Chrome 浏览器配置文件列表
+2. WHEN 用户点击刷新按钮 THEN 直播助手 SHALL 重新扫描本地浏览器配置文件
+3. WHEN 用户选择一个浏览器配置文件 THEN 直播助手 SHALL 获取该配置文件中所有京东域名的 Cookie
+4. WHEN Cookie 获取成功 THEN 直播助手 SHALL 在执行日志中打印 Cookie 信息
+5. WHEN Cookie 获取成功 THEN 直播助手 SHALL 显示已登录的京东账号昵称
+6. WHEN Cookie 获取失败 THEN 直播助手 SHALL 在执行日志中显示错误提示信息
 
 ### 需求 4
 
@@ -52,10 +54,13 @@
 
 #### 验收标准
 
-1. WHEN 用户进入商品信息设置区域 THEN 直播助手 SHALL 提供商品文件上传功能
-2. WHEN 用户上传商品文件 THEN 直播助手 SHALL 解析并显示商品列表
-3. WHEN 用户配置商品 THEN 直播助手 SHALL 允许设置每个商品需要添加的数量
-4. WHEN 用户配置商品 THEN 直播助手 SHALL 允许设置至少一个标题，且标题支持 AI 批量生成
+1. WHEN 用户进入商品信息设置区域 THEN 直播助手 SHALL 提供商品文件上传功能，支持 xlsx 格式
+2. WHEN 用户上传 xlsx 商品文件 THEN 直播助手 SHALL 验证第一列标题必须为 ID
+3. WHEN 用户上传 xlsx 商品文件 THEN 直播助手 SHALL 读取第一列的商品 ID 数据
+4. WHEN 解析商品文件 THEN 直播助手 SHALL 自动去除空行和重复的商品 ID
+5. WHEN 解析商品文件成功 THEN 直播助手 SHALL 显示去重后的商品数量
+6. WHEN 用户配置商品 THEN 直播助手 SHALL 允许设置每个商品需要添加的数量
+7. WHEN 用户配置商品 THEN 直播助手 SHALL 允许设置至少一个标题，且标题支持 AI 批量生成
 
 ### 需求 5
 

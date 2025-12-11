@@ -1,7 +1,7 @@
 // Chrome Cookie 读取模块 - 使用 CDP 协议
 mod reader;
 
-pub use reader::*;
+pub use reader::{get_chrome_profiles, read_chrome_cookies_cdp, ChromeProfile};
 
 use serde::{Deserialize, Serialize};
 

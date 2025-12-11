@@ -4,7 +4,84 @@ use chromiumoxide::browser::{Browser, BrowserConfig};
 use chromiumoxide::cdp::browser_protocol::storage::GetCookiesParams;
 use futures::StreamExt;
 use log::info;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+
+/// Chrome 浏览器配置文件信息
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ChromeProfile {
+    pub id: String,
+    pub name: String,
+    pub profile_path: String,
+}
+
+/// 获取所有 Chrome 浏览器配置文件列表
+pub fn get_chrome_profiles() -> Result<Vec<ChromeProfile>, CookieError> {
+    let user_data_dir = get_chrome_user_data_dir()?;
+    let mut profiles = Vec::new();
+
+    // 读取 Local State 文件获取配置文件信息
+    let local_state_path = user_data_dir.join("Local State");
+    if local_state_path.exists() {
+        if let Ok(content) = std::fs::read_to_string(&local_state_path) {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                if let Some(profile_info) = json.get("profile").and_then(|p| p.get("info_cache")) {
+                    if let Some(obj) = profile_info.as_object() {
+                        for (profile_dir, info) in obj {
+                            let name = info
+                                .get("name")
+                                .and_then(|n| n.as_str())
+                                .unwrap_or(profile_dir)
+                                .to_string();
+
+                            let profile_path = user_data_dir.join(profile_dir);
+                            if profile_path.exists() {
+                                profiles.push(ChromeProfile {
+                                    id: profile_dir.clone(),
+                                    name,
+                                    profile_path: profile_path.to_string_lossy().to_string(),
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 如果没有从 Local State 读取到，尝试扫描目录
+    if profiles.is_empty() {
+        // 检查 Default 配置文件
+        let default_path = user_data_dir.join("Default");
+        if default_path.exists() {
+            profiles.push(ChromeProfile {
+                id: "Default".to_string(),
+                name: "默认".to_string(),
+                profile_path: default_path.to_string_lossy().to_string(),
+            });
+        }
+
+        // 扫描 Profile 1, Profile 2 等
+        if let Ok(entries) = std::fs::read_dir(&user_data_dir) {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if name.starts_with("Profile ") && entry.path().is_dir() {
+                    profiles.push(ChromeProfile {
+                        id: name.clone(),
+                        name: name.clone(),
+                        profile_path: entry.path().to_string_lossy().to_string(),
+                    });
+                }
+            }
+        }
+    }
+
+    // 按名称排序
+    profiles.sort_by(|a, b| a.name.cmp(&b.name));
+
+    info!("找到 {} 个 Chrome 配置文件", profiles.len());
+    Ok(profiles)
+}
 
 /// 获取 Chrome 用户数据目录
 pub fn get_chrome_user_data_dir() -> Result<PathBuf, CookieError> {

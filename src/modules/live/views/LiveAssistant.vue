@@ -18,6 +18,13 @@ import type { BrowserInfo, ProductItem, ImageSettings, LiveParameters, AIScriptS
 
 const store = useLiveStore()
 
+// 手风琴展开状态
+const expandedPanel = ref<string | null>(null)
+
+function togglePanel(panel: string) {
+  expandedPanel.value = expandedPanel.value === panel ? null : panel
+}
+
 // AI 设置弹窗
 const showAISettings = ref(false)
 
@@ -35,28 +42,16 @@ const canStartLive = computed(() => store.isLiveRoomCreated && !store.isLiveStar
 // 处理浏览器选择
 function handleBrowserSelect(browser: BrowserInfo) {
   store.selectBrowser(browser.id)
-  store.addLog('info', `已选择浏览器: ${browser.name}`)
-  if (browser.jdAccount?.isLoggedIn) {
-    store.addLog('success', `已登录京东账号: ${browser.jdAccount.nickname}`)
-  }
 }
 
-// 刷新浏览器列表
-async function handleBrowserRefresh() {
-  browserLoading.value = true
-  store.addLog('info', '正在刷新浏览器列表...')
-  setTimeout(() => {
-    store.setBrowsers([
-      {
-        id: '1',
-        name: 'Chrome - 默认配置',
-        profilePath: 'Default',
-        jdAccount: { nickname: '测试用户', isLoggedIn: true },
-      },
-    ])
-    browserLoading.value = false
-    store.addLog('success', '浏览器列表刷新完成')
-  }, 1000)
+// 刷新浏览器列表（由组件内部处理）
+function handleBrowserRefresh() {
+  // 组件内部会自动处理刷新逻辑
+}
+
+// 更新浏览器列表
+function handleBrowsersUpdate(browsers: BrowserInfo[]) {
+  store.setBrowsers(browsers)
 }
 
 // 处理商品更新
@@ -64,16 +59,10 @@ function handleProductUpdate(products: ProductItem[]) {
   store.setProducts(products)
 }
 
-// 处理商品导入
-function handleProductImport(file: File) {
-  store.addLog('info', `正在导入商品文件: ${file.name}`)
-  setTimeout(() => {
-    store.setProducts([
-      { id: '1', name: '测试商品 1', quantity: 1, titles: ['标题 1'] },
-      { id: '2', name: '测试商品 2', quantity: 2, titles: ['标题 2'] },
-    ])
-    store.addLog('success', '商品导入成功')
-  }, 500)
+// 处理商品导入（由组件内部处理 xlsx 解析）
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function handleProductImport(_file: File) {
+  // 组件内部会自动处理 xlsx 解析逻辑
 }
 
 // AI 生成标题
@@ -156,24 +145,37 @@ function handleCountdownComplete() {
       </div>
 
       <!-- 右侧：设置项（占 2/5）- 手风琴模式 -->
-      <div class="w-2/5 flex flex-col gap-2 overflow-y-auto">
+      <div class="w-2/5 flex flex-col gap-2 settings-accordion">
         <BrowserList
           :browsers="store.browsers"
           :selected-id="store.selectedBrowserId"
           :loading="browserLoading"
-          accordion-name="settings"
+          :expanded="expandedPanel === 'browser'"
           @select="handleBrowserSelect"
           @refresh="handleBrowserRefresh"
+          @update:browsers="handleBrowsersUpdate"
+          @toggle="togglePanel('browser')"
         />
         <ProductConfig
           :products="store.products"
-          accordion-name="settings"
+          :expanded="expandedPanel === 'product'"
           @update="handleProductUpdate"
           @import="handleProductImport"
           @generate-titles="handleGenerateTitles"
+          @toggle="togglePanel('product')"
         />
-        <ImageConfig :config="store.imageConfig" accordion-name="settings" @update="handleImageConfigUpdate" />
-        <ExecutionLog :logs="store.logs" max-height="100px" accordion-name="settings" />
+        <ImageConfig
+          :config="store.imageConfig"
+          :expanded="expandedPanel === 'image'"
+          @update="handleImageConfigUpdate"
+          @toggle="togglePanel('image')"
+        />
+        <ExecutionLog
+          :logs="store.logs"
+          max-height="300px"
+          :expanded="expandedPanel === 'log'"
+          @toggle="togglePanel('log')"
+        />
       </div>
     </div>
 
@@ -205,3 +207,26 @@ function handleCountdownComplete() {
     />
   </div>
 </template>
+
+<style scoped>
+/* 手风琴模式：展开的折叠项自动填充剩余空间 */
+.settings-accordion {
+  overflow-y: auto;
+}
+
+.settings-accordion :deep(.collapse) {
+  flex-shrink: 0;
+}
+
+.settings-accordion :deep(.collapse.collapse-open) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.settings-accordion :deep(.collapse.collapse-open .collapse-content) {
+  flex: 1;
+  overflow-y: auto;
+}
+</style>

@@ -5,7 +5,7 @@ use std::hash::{Hash, Hasher};
 
 mod cookie;
 
-use cookie::{read_chrome_cookies_cdp, Cookie};
+use cookie::{get_chrome_profiles, read_chrome_cookies_cdp, ChromeProfile, Cookie};
 
 // 示例：Tauri Command
 #[tauri::command]
@@ -40,6 +40,12 @@ fn get_machine_code() -> String {
 
     let hash = hasher.finish();
     format!("{:016x}", hash)
+}
+
+/// 获取所有 Chrome 浏览器配置文件列表
+#[tauri::command]
+fn get_browser_profiles() -> Result<Vec<ChromeProfile>, String> {
+    get_chrome_profiles().map_err(|e| e.to_string())
 }
 
 /// 读取 Chrome Cookie 命令（使用 CDP 协议）
@@ -144,6 +150,7 @@ pub fn run() {
             greet,
             get_user_info,
             async_operation,
+            get_browser_profiles,
             read_chrome_cookies,
             create_screen_window,
             close_screen_window,

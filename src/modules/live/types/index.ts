@@ -42,6 +42,15 @@ export interface ProductItem {
   imageUrl?: string // 商品图片
 }
 
+// 商品文件解析结果
+export interface ProductFileResult {
+  success: boolean
+  productIds: string[] // 去重后的商品 ID 列表
+  totalCount: number // 原始数据条数
+  uniqueCount: number // 去重后的数量
+  error?: string // 错误信息
+}
+
 // 图片设置
 export interface ImageSettings {
   width: number // 图片宽度

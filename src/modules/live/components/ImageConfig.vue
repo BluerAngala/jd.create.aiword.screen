@@ -7,11 +7,12 @@ import type { ImageSettings } from '../types'
 
 interface Props {
   config: ImageSettings
-  accordionName?: string
+  expanded?: boolean
 }
 
 interface Emits {
   (e: 'update', config: ImageSettings): void
+  (e: 'toggle'): void
 }
 
 const props = defineProps<Props>()
@@ -24,13 +25,12 @@ function updateSize(key: 'width' | 'height', value: number) {
 </script>
 
 <template>
-  <div class="collapse collapse-arrow bg-base-100 shadow-sm">
-    <input type="radio" :name="accordionName" />
-    <div class="collapse-title py-2 px-3 min-h-0 flex items-center gap-2">
+  <div class="collapse collapse-arrow bg-base-100 shadow-sm" :class="{ 'collapse-open': expanded }">
+    <div class="collapse-title py-2 px-3 pr-10 min-h-0 flex items-center gap-2 cursor-pointer" @click="emit('toggle')">
       <Icon icon="mdi:image" class="text-lg" />
       <span class="text-sm font-medium">图片设置</span>
     </div>
-    <div class="collapse-content px-3 pb-2">
+    <div v-show="expanded" class="collapse-content px-3 pb-2">
       <div class="flex items-center gap-4">
         <div class="flex items-center gap-2">
           <span class="text-xs text-base-content/60">宽度:</span>

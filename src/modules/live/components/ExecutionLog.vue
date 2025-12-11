@@ -9,13 +9,18 @@ import type { LogEntry } from '../types'
 interface Props {
   logs: LogEntry[]
   maxHeight?: string
-  accordionName?: string
+  expanded?: boolean
+}
+
+interface Emits {
+  (e: 'toggle'): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
   maxHeight: '100px',
-  accordionName: undefined,
+  expanded: false,
 })
+const emit = defineEmits<Emits>()
 const logContainer = ref<HTMLElement | null>(null)
 
 const levelConfig = {
@@ -41,14 +46,13 @@ watch(
 </script>
 
 <template>
-  <div class="collapse collapse-arrow bg-base-100 shadow-sm">
-    <input type="radio" :name="accordionName" />
-    <div class="collapse-title py-2 px-3 pr-10 min-h-0 flex items-center gap-2">
+  <div class="collapse collapse-arrow bg-base-100 shadow-sm" :class="{ 'collapse-open': expanded }">
+    <div class="collapse-title py-2 px-3 pr-10 min-h-0 flex items-center gap-2 cursor-pointer" @click="emit('toggle')">
       <Icon icon="mdi:text-box-outline" class="text-lg" />
       <span class="text-sm font-medium flex-1">执行日志</span>
       <span class="text-xs text-base-content/50">{{ logs.length }} 条</span>
     </div>
-    <div class="collapse-content px-3 pb-2">
+    <div v-show="expanded" class="collapse-content px-3 pb-2">
       <div v-if="logs.length === 0" class="text-center py-2 text-base-content/60 text-xs">
         暂无日志
       </div>
