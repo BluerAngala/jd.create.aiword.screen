@@ -2055,6 +2055,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "jd-create-aiword-screen"
+version = "0.1.0"
+dependencies = [
+ "chromiumoxide",
+ "dirs 5.0.1",
+ "futures",
+ "hostname",
+ "log",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-log",
+ "tauri-plugin-opener",
+ "tokio",
+ "urlencoding",
+]
+
+[[package]]
 name = "jni"
 version = "0.21.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4397,26 +4417,6 @@ dependencies = [
  "urlpattern",
  "uuid",
  "walkdir",
-]
-
-[[package]]
-name = "tauri-vue-template"
-version = "0.1.0"
-dependencies = [
- "chromiumoxide",
- "dirs 5.0.1",
- "futures",
- "hostname",
- "log",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-log",
- "tauri-plugin-opener",
- "tokio",
- "urlencoding",
 ]
 
 [[package]]

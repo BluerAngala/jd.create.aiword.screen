@@ -1,12 +1,12 @@
 [package]
-name = "tauri-vue-template"
+name = "jd-create-aiword-screen"
 version = "0.1.0"
-description = "Tauri + Vue + DaisyUI 模板项目"
+description = "京东新建直播间+AI话术+商品投屏"
 authors = ["BluerAngala <new-ai@foxmail.com>"]
 edition = "2021"
 
 [lib]
-name = "tauri_vue_template_lib"
+name = "jd_create_aiword_screen_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
