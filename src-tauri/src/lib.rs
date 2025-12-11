@@ -1,5 +1,7 @@
 use log::info;
 use serde::{Deserialize, Serialize};
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 
 mod cookie;
 
@@ -10,6 +12,34 @@ use cookie::{read_chrome_cookies_cdp, Cookie};
 fn greet(name: &str) -> String {
     info!("greet 被调用，参数: {}", name);
     format!("你好，{}！来自 Rust 后端的问候。", name)
+}
+
+/// 获取机器码（基于系统信息生成唯一标识）
+#[tauri::command]
+fn get_machine_code() -> String {
+    let mut hasher = DefaultHasher::new();
+
+    // 获取主机名
+    if let Ok(hostname) = hostname::get() {
+        hostname.to_string_lossy().hash(&mut hasher);
+    }
+
+    // 获取用户名
+    if let Ok(username) = std::env::var("USERNAME").or_else(|_| std::env::var("USER")) {
+        username.hash(&mut hasher);
+    }
+
+    // 获取系统信息
+    std::env::consts::OS.hash(&mut hasher);
+    std::env::consts::ARCH.hash(&mut hasher);
+
+    // 获取 home 目录路径作为额外标识
+    if let Some(home) = dirs::home_dir() {
+        home.to_string_lossy().hash(&mut hasher);
+    }
+
+    let hash = hasher.finish();
+    format!("{:016x}", hash)
 }
 
 /// 读取 Chrome Cookie 命令（使用 CDP 协议）
@@ -92,7 +122,10 @@ async fn close_screen_window(app: tauri::AppHandle, label: String) -> Result<(),
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // 禁用 WebView2 GPU 加速，让 OBS 可以正常捕获窗口内容
-    std::env::set_var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "--disable-gpu");
+    // SAFETY: 在程序启动时设置环境变量，此时只有主线程运行
+    unsafe {
+        std::env::set_var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "--disable-gpu");
+    }
 
     tauri::Builder::default()
         .plugin(
@@ -113,7 +146,8 @@ pub fn run() {
             async_operation,
             read_chrome_cookies,
             create_screen_window,
-            close_screen_window
+            close_screen_window,
+            get_machine_code
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

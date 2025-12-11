@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
-import { useLogger } from '@/composables/useLogger'
+import { useLogger } from '@/core/composables'
 
 const logger = useLogger('Home')
 const greetMsg = ref('')

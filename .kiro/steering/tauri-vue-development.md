@@ -18,16 +18,27 @@
 ```
 ├── src/
 │   ├── assets/             # 静态资源
-│   ├── components/         # 通用组件
-│   │   └── ThemeSelector.vue
-│   ├── composables/        # 组合式函数
-│   │   ├── useTheme.ts     # 主题切换
-│   │   └── useLogger.ts    # 日志工具
+│   ├── config/             # 应用配置
+│   │   └── app.config.ts   # 功能开关和导航配置
+│   ├── core/               # 核心功能（必须保留）
+│   │   ├── components/     # 核心组件
+│   │   │   ├── ThemeSelector.vue
+│   │   │   └── ToastContainer.vue
+│   │   ├── composables/    # 核心组合式函数
+│   │   │   ├── useLogger.ts
+│   │   │   ├── useTheme.ts
+│   │   │   └── useToast.ts
+│   │   └── stores/         # 核心状态管理
+│   │       └── app.ts
+│   ├── modules/            # 可选功能模块
+│   │   ├── auth/           # 认证模块（卡密登录）
+│   │   ├── cookie/         # Cookie 读取模块
+│   │   ├── demo/           # 演示模块（动画、图标、Hooks）
+│   │   └── screen/         # 投屏模块
 │   ├── router/             # 路由配置
-│   ├── stores/             # Pinia 状态管理
 │   ├── styles/             # 全局样式
 │   ├── types/              # TypeScript 类型
-│   ├── views/              # 页面组件
+│   ├── views/              # 核心页面组件
 │   ├── App.vue             # 根组件
 │   └── main.ts             # 入口文件
 ├── src-tauri/
@@ -35,7 +46,7 @@
 │   │   ├── lib.rs          # Tauri 命令和插件
 │   │   └── main.rs         # 入口
 │   ├── capabilities/       # 权限配置
-│   ├── Cargo.toml          # Rust 依赖
+│   ├── Cargo.toml          # Rust 依赖（带模块注释）
 │   └── tauri.conf.json     # Tauri 配置
 ├── .github/workflows/      # CI/CD 工作流
 ├── package.json
@@ -67,7 +78,7 @@ import Home from '@/views/Home.vue'
 ### 日志系统
 
 ```typescript
-import { useLogger } from '@/composables/useLogger'
+import { useLogger } from '@/core/composables'
 
 const logger = useLogger('组件名')
 logger.info('信息')
@@ -194,7 +205,7 @@ import {
 ### 主题切换
 
 ```typescript
-import { useTheme } from '@/composables/useTheme'
+import { useTheme } from '@/core/composables'
 
 const { currentTheme, setTheme, themes } = useTheme()
 setTheme('dark')  // 切换到深色主题

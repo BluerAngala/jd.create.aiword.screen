@@ -14,7 +14,7 @@
     "windows": [
       {
         "title": "Tauri Vue Template",
-        "width": 900,
+        "width": 1080,
         "height": 700,
         "resizable": true,
         "center": true

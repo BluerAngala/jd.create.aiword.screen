@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useTheme } from '@/composables/useTheme'
+import { useTheme } from '@/core/composables'
 
 const { themes, currentTheme, setTheme } = useTheme()
 const showModal = ref(false)

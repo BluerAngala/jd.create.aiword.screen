@@ -2,8 +2,8 @@
 import { ref, computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useClipboard } from '@vueuse/core'
-import { useCookieStore } from '@/stores/cookie'
-import { useLogger } from '@/composables/useLogger'
+import { useCookieStore } from '../stores/cookie'
+import { useLogger } from '@/core/composables'
 
 const logger = useLogger('CookieReader')
 const cookieStore = useCookieStore()
@@ -128,9 +128,7 @@ const hasCookies = computed(() => cookieStore.cookies.length > 0)
     <div v-if="hasCookies" class="card bg-base-200 shadow-lg">
       <div class="card-body">
         <div class="flex justify-between items-center mb-4">
-          <h2 class="card-title">
-            找到 {{ cookieStore.cookies.length }} 个 Cookie
-          </h2>
+          <h2 class="card-title">找到 {{ cookieStore.cookies.length }} 个 Cookie</h2>
           <button class="btn btn-secondary btn-sm" @click="handleExport">
             <Icon icon="mdi:download" class="text-lg" />
             导出 JSON
@@ -171,15 +169,14 @@ const hasCookies = computed(() => cookieStore.cookies.length > 0)
                         :icon="expandedValues.has(index) ? 'mdi:chevron-up' : 'mdi:chevron-down'"
                       />
                     </button>
-                    <span
-                      v-if="copiedIndex === index"
-                      class="badge badge-success badge-xs shrink-0"
-                    >
+                    <span v-if="copiedIndex === index" class="badge badge-success badge-xs shrink-0">
                       已复制
                     </span>
                   </div>
                 </td>
-                <td class="font-mono text-xs truncate" :title="cookie.domain">{{ cookie.domain }}</td>
+                <td class="font-mono text-xs truncate" :title="cookie.domain">
+                  {{ cookie.domain }}
+                </td>
                 <td class="font-mono text-xs">{{ cookie.path }}</td>
                 <td class="text-xs whitespace-nowrap">{{ formatExpires(cookie.expires) }}</td>
                 <td>
@@ -196,7 +193,10 @@ const hasCookies = computed(() => cookieStore.cookies.length > 0)
     </div>
 
     <!-- 空状态 -->
-    <div v-else-if="!cookieStore.loading && !cookieStore.error && urlInput" class="card bg-base-200 shadow-lg">
+    <div
+      v-else-if="!cookieStore.loading && !cookieStore.error && urlInput"
+      class="card bg-base-200 shadow-lg"
+    >
       <div class="card-body items-center text-center">
         <Icon icon="mdi:cookie-off" class="text-6xl text-base-content/30" />
         <p class="text-base-content/50">输入网站 URL 并点击读取按钮</p>

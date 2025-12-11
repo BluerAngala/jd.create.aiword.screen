@@ -2,7 +2,7 @@
 import { ref, reactive } from 'vue'
 import { Icon } from '@iconify/vue'
 import { invoke } from '@tauri-apps/api/core'
-import { useLogger } from '@/composables/useLogger'
+import { useLogger } from '@/core/composables'
 
 const logger = useLogger('ScreenWindow')
 
@@ -47,19 +47,14 @@ const styleConfig = reactive({
   textColor: '#ffffff',
   backgroundColor: '#000000',
   fontSize: 48,
-  // 倒计时
   countdownMinutes: 5,
-  // 滚动文字
   marqueeText: '欢迎来到直播间！关注主播不迷路～',
   marqueeSpeed: 50,
-  // 渐变
   gradientFrom: '#667eea',
   gradientTo: '#764ba2',
   gradientAngle: 135,
-  // 图片
   imageUrl: 'https://picsum.photos/800/600',
   imageFit: 'cover',
-  // 粒子
   particleColor: '#ffffff',
   particleCount: 50,
   particleBgColor: '#1a1a2e',
@@ -157,8 +152,6 @@ async function closeAllWindows() {
     await closeWindow(w.id)
   }
 }
-
-
 </script>
 
 <template>
@@ -211,7 +204,6 @@ async function closeAllWindows() {
         <div class="card bg-base-200">
           <div class="card-body p-4">
             <h3 class="font-bold text-sm mb-3">样式配置</h3>
-
             <div class="grid grid-cols-2 gap-3">
               <!-- 文字颜色 -->
               <div class="form-control">
@@ -240,7 +232,11 @@ async function closeAllWindows() {
               <div v-if="config.contentType !== 'gradient'" class="form-control">
                 <label class="label py-1"><span class="label-text text-xs">背景颜色</span></label>
                 <div class="flex gap-1">
-                  <input v-model="styleConfig.backgroundColor" type="color" class="w-8 h-8 rounded" />
+                  <input
+                    v-model="styleConfig.backgroundColor"
+                    type="color"
+                    class="w-8 h-8 rounded"
+                  />
                   <input
                     v-model="styleConfig.backgroundColor"
                     type="text"
@@ -251,7 +247,9 @@ async function closeAllWindows() {
 
               <!-- 倒计时分钟 -->
               <div v-if="config.contentType === 'countdown'" class="form-control">
-                <label class="label py-1"><span class="label-text text-xs">倒计时(分钟)</span></label>
+                <label class="label py-1"
+                  ><span class="label-text text-xs">倒计时(分钟)</span></label
+                >
                 <input
                   v-model.number="styleConfig.countdownMinutes"
                   type="number"
@@ -272,7 +270,9 @@ async function closeAllWindows() {
                 </div>
                 <div class="form-control">
                   <label class="label py-1"
-                    ><span class="label-text text-xs">速度: {{ styleConfig.marqueeSpeed }}</span></label
+                    ><span class="label-text text-xs"
+                      >速度: {{ styleConfig.marqueeSpeed }}</span
+                    ></label
                   >
                   <input
                     v-model.number="styleConfig.marqueeSpeed"
@@ -289,7 +289,11 @@ async function closeAllWindows() {
                 <div class="form-control">
                   <label class="label py-1"><span class="label-text text-xs">起始颜色</span></label>
                   <div class="flex gap-1">
-                    <input v-model="styleConfig.gradientFrom" type="color" class="w-8 h-8 rounded" />
+                    <input
+                      v-model="styleConfig.gradientFrom"
+                      type="color"
+                      class="w-8 h-8 rounded"
+                    />
                     <input
                       v-model="styleConfig.gradientFrom"
                       type="text"
@@ -310,7 +314,9 @@ async function closeAllWindows() {
                 </div>
                 <div class="form-control">
                   <label class="label py-1"
-                    ><span class="label-text text-xs">角度: {{ styleConfig.gradientAngle }}°</span></label
+                    ><span class="label-text text-xs"
+                      >角度: {{ styleConfig.gradientAngle }}°</span
+                    ></label
                   >
                   <input
                     v-model.number="styleConfig.gradientAngle"
@@ -348,7 +354,11 @@ async function closeAllWindows() {
                 <div class="form-control">
                   <label class="label py-1"><span class="label-text text-xs">粒子颜色</span></label>
                   <div class="flex gap-1">
-                    <input v-model="styleConfig.particleColor" type="color" class="w-8 h-8 rounded" />
+                    <input
+                      v-model="styleConfig.particleColor"
+                      type="color"
+                      class="w-8 h-8 rounded"
+                    />
                     <input
                       v-model="styleConfig.particleColor"
                       type="text"
@@ -359,7 +369,11 @@ async function closeAllWindows() {
                 <div class="form-control">
                   <label class="label py-1"><span class="label-text text-xs">背景颜色</span></label>
                   <div class="flex gap-1">
-                    <input v-model="styleConfig.particleBgColor" type="color" class="w-8 h-8 rounded" />
+                    <input
+                      v-model="styleConfig.particleBgColor"
+                      type="color"
+                      class="w-8 h-8 rounded"
+                    />
                     <input
                       v-model="styleConfig.particleBgColor"
                       type="text"
@@ -369,7 +383,9 @@ async function closeAllWindows() {
                 </div>
                 <div class="form-control">
                   <label class="label py-1"
-                    ><span class="label-text text-xs">数量: {{ styleConfig.particleCount }}</span></label
+                    ><span class="label-text text-xs"
+                      >数量: {{ styleConfig.particleCount }}</span
+                    ></label
                   >
                   <input
                     v-model.number="styleConfig.particleCount"
@@ -388,7 +404,6 @@ async function closeAllWindows() {
         <div class="card bg-base-200">
           <div class="card-body p-4">
             <h3 class="font-bold text-sm mb-3">窗口配置</h3>
-
             <div class="grid grid-cols-2 gap-3">
               <div class="form-control">
                 <label class="label py-1"><span class="label-text text-xs">标题</span></label>
@@ -508,6 +523,5 @@ async function closeAllWindows() {
         </div>
       </div>
     </div>
-
   </div>
 </template>

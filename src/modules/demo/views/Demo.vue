@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { open, save, message } from '@tauri-apps/plugin-dialog'
-import { useLogger } from '@/composables/useLogger'
+import { useLogger } from '@/core/composables'
 
 const logger = useLogger('Demo')
 

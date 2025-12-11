@@ -144,10 +144,7 @@ const isHovered = useElementHover(hoverRef)
           </h3>
           <p class="text-base-content/70">网络连接状态</p>
           <div class="flex items-center gap-2 mt-2">
-            <div
-              class="badge badge-lg"
-              :class="isOnline ? 'badge-success' : 'badge-error'"
-            >
+            <div class="badge badge-lg" :class="isOnline ? 'badge-success' : 'badge-error'">
               <Icon :icon="isOnline ? 'mdi:wifi' : 'mdi:wifi-off'" class="mr-1" />
               {{ isOnline ? '在线' : '离线' }}
             </div>
@@ -164,7 +161,10 @@ const isHovered = useElementHover(hoverRef)
           </h3>
           <p class="text-base-content/70">电池信息</p>
           <div class="flex items-center gap-4 mt-2">
-            <div class="radial-progress text-primary" :style="`--value:${(level ?? 0) * 100}`">
+            <div
+              class="radial-progress text-primary"
+              :style="`--value:${(level ?? 0) * 100}`"
+            >
               {{ Math.round((level ?? 0) * 100) }}%
             </div>
             <div class="badge" :class="charging ? 'badge-success' : 'badge-ghost'">
@@ -218,7 +218,11 @@ const isHovered = useElementHover(hoverRef)
           </h3>
           <p class="text-base-content/70">深色模式切换</p>
           <div class="flex items-center gap-4 mt-2">
-            <button class="btn" :class="isDark ? 'btn-primary' : 'btn-outline'" @click="toggleDark()">
+            <button
+              class="btn"
+              :class="isDark ? 'btn-primary' : 'btn-outline'"
+              @click="toggleDark()"
+            >
               <Icon :icon="isDark ? 'mdi:weather-night' : 'mdi:weather-sunny'" />
               {{ isDark ? '深色模式' : '浅色模式' }}
             </button>

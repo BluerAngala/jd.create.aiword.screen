@@ -14,9 +14,7 @@ onMounted(async () => {
 
 // 拖拽窗口 - 使用 pointerdown 事件更可靠
 async function startDrag(e: PointerEvent) {
-  // 只响应左键
   if (e.button !== 0) return
-
   try {
     if (appWindow) {
       await appWindow.startDragging()
@@ -125,7 +123,6 @@ onMounted(() => {
       }
     }, 1000)
   } else if (contentType.value === 'particles') {
-    // 初始化粒子
     for (let i = 0; i < particleCount.value; i++) {
       particles.value.push({
         x: Math.random() * 100,
@@ -136,12 +133,10 @@ onMounted(() => {
         opacity: Math.random() * 0.6 + 0.4,
       })
     }
-    // 动画循环
     const animate = () => {
       particles.value.forEach((p) => {
         p.x += p.speedX
         p.y += p.speedY
-        // 边界处理
         if (p.y < -5) {
           p.y = 105
           p.x = Math.random() * 100
@@ -271,14 +266,11 @@ const marqueeDuration = computed(() => `${Math.max(5, 30 - marqueeSpeed.value / 
 
     <!-- 渐变背景 -->
     <div v-else-if="contentType === 'gradient'"></div>
-
   </div>
 
-  <!-- 右键菜单（放在根容器外面，避免被内容遮挡） -->
+  <!-- 右键菜单 -->
   <Teleport to="body">
-    <!-- 遮罩层 -->
     <div v-if="contextMenu.show" class="fixed inset-0 z-9998" @click="hideContextMenu"></div>
-    <!-- 菜单 -->
     <div
       v-if="contextMenu.show"
       class="fixed z-9999"

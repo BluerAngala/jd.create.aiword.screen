@@ -1,7 +1,7 @@
 [package]
-name = "jd-create-aiword-screen"
-version = "0.0.1"
-description = "京东新建直播间+AI话术+投屏软件"
+name = "tauri-vue-template"
+version = "0.1.0"
+description = "Tauri + Vue + DaisyUI 模板项目"
 authors = ["BluerAngala <new-ai@foxmail.com>"]
 edition = "2021"
 
@@ -13,6 +13,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+# === 核心依赖（必须保留）===
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2"
@@ -21,7 +22,14 @@ log = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["full"] }
+
+# === 认证模块依赖 ===
 dirs = "5.0"
+hostname = "0.4"
+
+# === Cookie 模块依赖（不需要可注释）===
 chromiumoxide = { version = "0.7", features = ["tokio-runtime"], default-features = false }
 futures = "0.3"
+
+# === 投屏模块依赖（不需要可注释）===
 urlencoding = "2.1"
