@@ -269,3 +269,4 @@ GitHub Actions 会自动打包 Windows、macOS、Linux 版本。
 2. Rust 代码修改需要重新编译，前端支持热重载
 3. 使用 `pnpm lint` 确保代码规范
 4. 日志会同时输出到控制台和 Tauri 日志系统
+5. 按钮使用图标时，必须同时添加文字说明，格式：`<Icon icon="xxx" /> 文字`

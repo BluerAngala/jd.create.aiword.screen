@@ -126,7 +126,8 @@ export const useLiveStore = defineStore('live', () => {
     liveParams.value = params
   }
 
-  // 日志方法
+  // 日志方法（最大 500 条，超出自动清除旧的）
+  const MAX_LOGS = 500
   function addLog(level: LogEntry['level'], message: string) {
     const entry: LogEntry = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
@@ -135,6 +136,10 @@ export const useLiveStore = defineStore('live', () => {
       message,
     }
     logs.value.push(entry)
+    // 超出最大条数时，移除最旧的日志
+    if (logs.value.length > MAX_LOGS) {
+      logs.value = logs.value.slice(-MAX_LOGS)
+    }
   }
 
   function clearLogs() {

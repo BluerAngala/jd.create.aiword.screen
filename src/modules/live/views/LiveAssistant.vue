@@ -175,6 +175,7 @@ function handleCountdownComplete() {
           max-height="300px"
           :expanded="expandedPanel === 'log'"
           @toggle="togglePanel('log')"
+          @clear="store.clearLogs"
         />
       </div>
     </div>

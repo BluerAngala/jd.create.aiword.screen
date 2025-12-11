@@ -1,9 +1,10 @@
 <script setup lang="ts">
 /**
- * 执行日志组件 - 支持折叠
+ * 执行日志组件 - 支持折叠、清空、复制
  */
 import { ref, watch, nextTick } from 'vue'
 import { Icon } from '@iconify/vue'
+import { useClipboard } from '@vueuse/core'
 import type { LogEntry } from '../types'
 
 interface Props {
@@ -14,6 +15,7 @@ interface Props {
 
 interface Emits {
   (e: 'toggle'): void
+  (e: 'clear'): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -22,6 +24,7 @@ const props = withDefaults(defineProps<Props>(), {
 })
 const emit = defineEmits<Emits>()
 const logContainer = ref<HTMLElement | null>(null)
+const { copy, copied } = useClipboard()
 
 const levelConfig = {
   info: { icon: 'mdi:information', class: 'text-info' },
@@ -32,6 +35,19 @@ const levelConfig = {
 
 function formatTime(date: Date): string {
   return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+}
+
+// 复制所有日志
+function copyLogs() {
+  const text = props.logs
+    .map((log) => `[${formatTime(log.timestamp)}] [${log.level.toUpperCase()}] ${log.message}`)
+    .join('\n')
+  copy(text)
+}
+
+// 清空日志
+function clearLogs() {
+  emit('clear')
 }
 
 watch(
@@ -51,6 +67,27 @@ watch(
       <Icon icon="mdi:text-box-outline" class="text-lg" />
       <span class="text-sm font-medium flex-1">执行日志</span>
       <span class="text-xs text-base-content/50">{{ logs.length }} 条</span>
+      <!-- 复制按钮 -->
+      <button
+        class="btn btn-ghost btn-xs"
+        :class="{ 'text-success': copied }"
+        :disabled="logs.length === 0"
+        title="复制日志"
+        @click.stop="copyLogs"
+      >
+        <Icon :icon="copied ? 'mdi:check' : 'mdi:content-copy'" />
+        {{ copied ? '已复制' : '复制' }}
+      </button>
+      <!-- 清空按钮 -->
+      <button
+        class="btn btn-ghost btn-xs"
+        :disabled="logs.length === 0"
+        title="清空日志"
+        @click.stop="clearLogs"
+      >
+        <Icon icon="mdi:delete-outline" />
+        清空
+      </button>
     </div>
     <div v-if="expanded" class="px-3 pb-2">
       <div v-if="logs.length === 0" class="text-center py-2 text-base-content/60 text-xs">

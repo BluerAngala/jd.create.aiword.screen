@@ -95,13 +95,8 @@ async function fetchJdCookies(browser: BrowserInfo) {
       profile: browser.id,
     })
 
-    // 打印 Cookie 到日志
+    // 打印 Cookie 结果
     liveStore.addLog('success', `获取到 ${cookies.length} 个京东域名的 Cookie`)
-
-    // 打印每个 Cookie 的详细信息
-    for (const cookie of cookies) {
-      liveStore.addLog('info', `Cookie: ${cookie.name} = ${cookie.value.substring(0, 20)}... (${cookie.domain})`)
-    }
 
     // 尝试从 Cookie 中获取用户昵称（通常在 pin 或 unick 中）
     const pinCookie = cookies.find((c) => c.name === 'pin' || c.name === 'unick')
