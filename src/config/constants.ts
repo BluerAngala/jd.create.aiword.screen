@@ -91,6 +91,8 @@ export const STORAGE_KEYS = {
   PRODUCT_FILES: 'jd-live-assistant-product-files',
   /** 直播间标题设置 */
   TITLE_SETTINGS: 'jd-live-title-settings',
+  /** 投屏配置方案列表 */
+  SCREEN_PRESETS: 'jd-live-screen-presets',
 } as const
 
 // ============ 直播配置 ============

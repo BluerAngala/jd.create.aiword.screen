@@ -13,6 +13,7 @@ import type {
   AIScriptSettings,
   LiveSession,
   LiveProduct,
+  ScreenPreset,
 } from '../types'
 import {
   STORAGE_KEYS,
@@ -35,7 +36,6 @@ const defaultSettings: AppSettings = {
 const defaultImageConfig: ImageSettings = {
   width: DEFAULTS.IMAGE_WIDTH,
   height: DEFAULTS.IMAGE_HEIGHT,
-  position: 'top-left',
 }
 
 // 默认直播参数（开始时间为当前时间 + 3 分钟）
@@ -368,6 +368,143 @@ export const useLiveStore = defineStore('live', () => {
     await saveLiveSessions()
   }
 
+  // ============ 投屏配置方案管理 ============
+
+  // 投屏方案列表
+  const screenPresets = ref<ScreenPreset[]>(loadScreenPresets())
+
+  // 当前选中的方案 ID（持久化）
+  const selectedPresetId = ref<string | null>(loadSelectedPresetId())
+
+  // 加载投屏方案
+  function loadScreenPresets(): ScreenPreset[] {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.SCREEN_PRESETS)
+      if (saved) {
+        return JSON.parse(saved)
+      }
+    } catch {
+      // 忽略
+    }
+    return []
+  }
+
+  // 加载选中的方案 ID
+  function loadSelectedPresetId(): string | null {
+    return localStorage.getItem(STORAGE_KEYS.SCREEN_PRESETS + '_selected') || null
+  }
+
+  // 保存投屏方案到本地
+  function saveScreenPresets() {
+    localStorage.setItem(STORAGE_KEYS.SCREEN_PRESETS, JSON.stringify(screenPresets.value))
+  }
+
+  // 保存选中的方案 ID
+  function saveSelectedPresetId() {
+    if (selectedPresetId.value) {
+      localStorage.setItem(STORAGE_KEYS.SCREEN_PRESETS + '_selected', selectedPresetId.value)
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.SCREEN_PRESETS + '_selected')
+    }
+  }
+
+  // 获取投屏窗口当前状态（位置和尺寸）
+  async function getScreenWindowState(): Promise<Partial<ImageSettings>> {
+    try {
+      const state = await invoke<{ x: number; y: number; width: number; height: number } | null>(
+        'get_window_state',
+        { label: 'screen-window' }
+      )
+      if (state) {
+        return {
+          x: state.x,
+          y: state.y,
+          width: Math.round(state.width),
+          height: Math.round(state.height),
+        }
+      }
+    } catch {
+      // 窗口不存在，忽略
+    }
+    return {}
+  }
+
+  // 添加新方案（异步，会获取窗口状态）
+  async function addScreenPreset(name: string): Promise<ScreenPreset> {
+    const state = await getScreenWindowState()
+    const preset: ScreenPreset = {
+      id: `preset-${Date.now()}`,
+      name,
+      config: { ...imageConfig.value, ...state },
+      createdAt: new Date().toISOString(),
+    }
+    screenPresets.value.push(preset)
+    saveScreenPresets()
+    // 自动选中新方案
+    selectedPresetId.value = preset.id
+    saveSelectedPresetId()
+    return preset
+  }
+
+  // 加载方案到当前配置
+  function loadScreenPreset(id: string | null) {
+    selectedPresetId.value = id
+    saveSelectedPresetId()
+    if (id) {
+      const preset = screenPresets.value.find((p) => p.id === id)
+      if (preset) {
+        imageConfig.value = { ...preset.config }
+      }
+    }
+  }
+
+  // 初始化时加载选中的方案
+  function initScreenPreset() {
+    if (selectedPresetId.value) {
+      const preset = screenPresets.value.find((p) => p.id === selectedPresetId.value)
+      if (preset) {
+        imageConfig.value = { ...preset.config }
+      } else {
+        // 方案不存在，重置
+        selectedPresetId.value = null
+        saveSelectedPresetId()
+      }
+    }
+  }
+
+  // 立即初始化
+  initScreenPreset()
+
+  // 更新方案（异步，会获取窗口状态：位置和尺寸）
+  async function updateScreenPreset(id: string): Promise<boolean> {
+    const index = screenPresets.value.findIndex((p) => p.id === id)
+    if (index !== -1) {
+      const state = await getScreenWindowState()
+      console.log('保存方案，窗口状态:', state)
+      // 合并当前配置和窗口状态（窗口状态优先）
+      const newConfig = { ...imageConfig.value, ...state }
+      screenPresets.value[index] = {
+        ...screenPresets.value[index]!,
+        config: newConfig,
+      }
+      // 同步更新当前配置
+      imageConfig.value = newConfig
+      saveScreenPresets()
+      return true
+    }
+    return false
+  }
+
+  // 删除方案
+  function deleteScreenPreset(id: string) {
+    screenPresets.value = screenPresets.value.filter((p) => p.id !== id)
+    saveScreenPresets()
+    if (selectedPresetId.value === id) {
+      selectedPresetId.value = null
+      saveSelectedPresetId()
+    }
+  }
+
   return {
     // 状态
     settings,
@@ -426,5 +563,13 @@ export const useLiveStore = defineStore('live', () => {
 
     // 自动讲解
     autoExplainEnabled,
+
+    // 投屏方案
+    screenPresets,
+    selectedPresetId,
+    addScreenPreset,
+    loadScreenPreset,
+    updateScreenPreset,
+    deleteScreenPreset,
   }
 })

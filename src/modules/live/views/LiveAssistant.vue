@@ -953,6 +953,12 @@ async function handleStartScreen() {
   }
 
   try {
+    // 构建 URL 参数
+    let extraParams = `imageUrl=${encodeURIComponent(firstProduct.img)}`
+    if (store.imageConfig.borderImage) {
+      extraParams += `&borderImage=${encodeURIComponent(store.imageConfig.borderImage)}`
+    }
+
     // 调用后端创建投屏窗口（无边框）
     await invoke('create_screen_window', {
       label: 'screen-window',
@@ -964,7 +970,9 @@ async function handleStartScreen() {
       decorations: false, // 无边框，去掉顶部操作栏
       resizable: true,
       backgroundColor: '#000000',
-      extraParams: `imageUrl=${encodeURIComponent(firstProduct.img)}`,
+      extraParams,
+      x: store.imageConfig.x, // 窗口 x 坐标
+      y: store.imageConfig.y, // 窗口 y 坐标
     })
 
     screenImageUrl.value = firstProduct.img

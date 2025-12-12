@@ -2166,6 +2166,7 @@ dependencies = [
 name = "jd-live-assistant"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "chromiumoxide",
  "dirs 5.0.1",
  "futures",

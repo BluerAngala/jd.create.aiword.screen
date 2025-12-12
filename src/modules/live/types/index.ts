@@ -65,7 +65,17 @@ export interface ProductFile {
 export interface ImageSettings {
   width: number // 图片宽度
   height: number // 图片高度
-  position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' // 初始位置
+  x?: number // 窗口 x 坐标
+  y?: number // 窗口 y 坐标
+  borderImage?: string // 边框图片本地路径
+}
+
+// 投屏配置方案
+export interface ScreenPreset {
+  id: string // 唯一标识
+  name: string // 方案名称
+  config: ImageSettings // 配置内容
+  createdAt: string // 创建时间
 }
 
 // 日志条目

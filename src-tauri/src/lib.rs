@@ -65,6 +65,8 @@ pub fn run() {
             screen::create_screen_window,
             screen::close_screen_window,
             screen::start_dragging_window,
+            screen::read_image_as_base64,
+            screen::get_window_state,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
