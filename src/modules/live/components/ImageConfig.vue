@@ -37,7 +37,11 @@ function updateConfig<K extends keyof ImageSettings>(key: K, value: ImageSetting
 }
 
 function toggleScreen() {
-  props.isScreening ? emit('stopScreen') : emit('startScreen')
+  if (props.isScreening) {
+    emit('stopScreen')
+  } else {
+    emit('startScreen')
+  }
 }
 </script>
 
