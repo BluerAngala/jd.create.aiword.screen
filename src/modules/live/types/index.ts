@@ -58,6 +58,7 @@ export interface ProductFile {
   productIds: string[] // 去重后的商品 ID 列表
   totalCount: number // 原始数据条数
   uniqueCount: number // 去重后的数量
+  useCount: number // 每场直播使用的商品数量，默认 999
 }
 
 // 图片设置

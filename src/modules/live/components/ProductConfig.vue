@@ -197,6 +197,7 @@ async function handleFileChange(event: Event) {
       productIds: result.productIds,
       totalCount: result.totalCount,
       uniqueCount: result.uniqueCount,
+      useCount: 999, // 默认每场直播使用 999 条
     }
     productFiles.value.push(productFile)
     liveStore.addLog('success', `${file.name}: 共 ${result.totalCount} 条，去重后 ${result.uniqueCount} 条`)
@@ -286,11 +287,11 @@ function handleDragEnd() {
       </div>
 
       <!-- 文件列表 -->
-      <div v-else class="space-y-1 max-h-48 overflow-y-auto">
+      <div v-else class="space-y-2 max-h-64 overflow-y-auto">
         <div
           v-for="(file, index) in productFiles"
           :key="file.id"
-          class="flex items-center gap-2 p-2 bg-base-200 rounded cursor-move transition-all"
+          class="p-2 bg-base-200 rounded cursor-move transition-all"
           :class="{
             'opacity-50': dragIndex === index,
             'border-2 border-primary border-dashed': dragOverIndex === index && dragIndex !== index,
@@ -302,22 +303,45 @@ function handleDragEnd() {
           @drop="handleDrop(index)"
           @dragend="handleDragEnd"
         >
-          <!-- 拖拽手柄 -->
-          <Icon icon="mdi:drag" class="text-base-content/40" />
+          <!-- 第一行：文件信息 -->
+          <div class="flex items-center gap-2">
+            <!-- 拖拽手柄 -->
+            <Icon icon="mdi:drag" class="text-base-content/40" />
 
-          <!-- 序号 -->
-          <span class="badge badge-ghost badge-sm w-6">{{ index + 1 }}</span>
+            <!-- 序号 -->
+            <span class="badge badge-ghost badge-sm w-6">{{ index + 1 }}</span>
 
-          <!-- 文件名 -->
-          <span class="flex-1 text-sm truncate" :title="file.name">{{ file.name }}</span>
+            <!-- 文件名 -->
+            <span class="flex-1 text-sm truncate" :title="file.name">{{ file.name }}</span>
 
-          <!-- 商品数量 -->
-          <span class="badge badge-outline badge-sm">{{ file.uniqueCount }} 条</span>
+            <!-- 删除按钮 -->
+            <button class="btn btn-ghost btn-xs text-error" @click="removeFile(file.id)">
+              <Icon icon="mdi:close" />
+            </button>
+          </div>
 
-          <!-- 删除按钮 -->
-          <button class="btn btn-ghost btn-xs text-error" @click="removeFile(file.id)">
-            <Icon icon="mdi:close" />
-          </button>
+          <!-- 第二行：数量设置 -->
+          <div class="flex items-center gap-4 mt-2 ml-6 text-xs">
+            <!-- 有效商品数量 -->
+            <div class="flex items-center gap-1 text-base-content/70">
+              <span>有效商品：</span>
+              <span class="font-medium">{{ file.uniqueCount }} 条</span>
+            </div>
+
+            <!-- 每场使用数量 -->
+            <div class="flex items-center gap-1">
+              <span class="text-base-content/70">每场添加：</span>
+              <input
+                v-model.number="file.useCount"
+                type="number"
+                min="1"
+                :max="file.uniqueCount"
+                class="input input-bordered input-xs w-16 text-center"
+                @click.stop
+              />
+              <span class="text-base-content/70">条</span>
+            </div>
+          </div>
         </div>
       </div>
 
