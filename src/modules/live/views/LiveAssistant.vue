@@ -545,14 +545,173 @@ function generateAIScripts() {
   store.addLog('success', `已生成 ${scripts.length} 条商品话术`)
 }
 
-// 生成单个商品话术
+// 格式化话术内容：第一行商品标题，空一行后话术内容，每4个句号换行
+function formatScriptContent(title: string, content: string): string {
+  // 移除内容中可能已有的标题部分
+  let cleanContent = content
+    .replace(/^【\d+】[^\n]*\n*/g, '')
+    .replace(/^【第\d+款】[^\n]*\n*/g, '')
+    .replace(/^.*?：\s*/g, '')
+    .trim()
+
+  // 每4个句号后换行（中文句号和英文句号都算）
+  let periodCount = 0
+  let formattedContent = ''
+  for (let i = 0; i < cleanContent.length; i++) {
+    const char = cleanContent[i]
+    formattedContent += char
+    if (char === '。' || char === '.') {
+      periodCount++
+      if (periodCount % 4 === 0 && i < cleanContent.length - 1) {
+        formattedContent += '\n\n'
+      }
+    }
+  }
+
+  return `${title}\n\n${formattedContent.trim()}`
+}
+
+// 生成单个商品话术（模板方式，作为 AI 生成失败时的备选）
 function generateProductScript(product: LiveProduct, index: number): string {
+  const title = `【${index + 1}】${product.title}`
   const templates = [
-    `【第${index + 1}款】${product.title}\n\n这款商品非常推荐给大家！品质有保障，价格也很实惠。喜欢的朋友们可以点击下方链接下单哦~`,
-    `【第${index + 1}款】${product.title}\n\n家人们看过来！这款商品是我们精心挑选的，性价比超高！数量有限，先到先得~`,
-    `【第${index + 1}款】${product.title}\n\n宝子们，这款商品真的太棒了！我自己也在用，强烈推荐给大家！赶紧下单吧~`,
+    '这款商品非常推荐给大家！品质有保障，价格也很实惠。喜欢的朋友们可以点击下方链接下单哦~',
+    '家人们看过来！这款商品是我们精心挑选的，性价比超高！数量有限，先到先得~',
+    '宝子们，这款商品真的太棒了！我自己也在用，强烈推荐给大家！赶紧下单吧~',
   ]
-  return templates[index % templates.length] ?? templates[0]!
+  const content = templates[index % templates.length] ?? templates[0]!
+  return formatScriptContent(title, content)
+}
+
+// 调用 AI API 生成单个商品话术
+async function generateProductScriptByAI(product: LiveProduct, index: number): Promise<string> {
+  const settings = store.aiScriptSettings
+  if (!settings.apiKey) {
+    return generateProductScript(product, index)
+  }
+
+  const systemPrompt = settings.prompt || '你是一个专业的直播带货主播，请根据商品信息生成吸引人的直播话术。'
+  const userPrompt = `这是商品的基本信息：
+商品名称：${product.title}
+商品价格：${product.price || '优惠价'}
+店铺名称：${product.shopName || ''}
+
+我要做直播商品讲解，你帮我写一个商品的口播词，400字左右，生成我直接可以用的，不用写框架，不要使用表情和颜文字，写成一段就行，别留那么多空行，使用中文。不要使用最多，第一，必须，顶级，国家级等极限词，不要使用美白，抗皱违禁词。类似这样，
+
+家人们，今天给大家介绍一款超棒的手机 —— 荣耀 Play9T！
+外观上，荣耀 Play9T 简直就是 “颜值担当”。它的机身线条流畅，轻薄又便携，拿在手里十分舒适。时尚的配色方案，每一种都独具魅力，不管你是走简约风还是个性风，都能选到合心意的颜色。
+性能方面，荣耀 Play9T 也毫不逊色。搭载了强劲的处理器，运行速度超快，多任务处理轻松自如。无论是刷短视频、玩游戏，还是日常办公，它都能高效完成，让你告别卡顿和等待的烦恼。
+它的拍照功能同样出色。高清的摄像头，能够捕捉每一个精彩瞬间。白天拍摄，色彩鲜艳、画面清晰；夜晚拍摄，也能有效减少噪点，拍出质感满满的照片。有了它，你随时都能记录生活中的美好。
+再说说续航，荣耀 Play9T 配备了大容量电池，续航能力超强。就算你一整天都在使用手机，也不用担心电量不足。而且它还支持快速充电，短时间就能补充大量电量，让你没有后顾之忧。
+这么一款外观美、性能强、拍照好、续航久的荣耀 Play9T，你还在等什么呢？赶紧入手一台吧！
+`
+
+  try {
+    const response = await fetch('https://api.siliconflow.cn/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${settings.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: settings.model || 'Qwen/Qwen2-7B-Instruct',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        max_tokens: 500,
+        temperature: 0.7,
+      }),
+    })
+
+    if (!response.ok) {
+      throw new Error(`API 请求失败: ${response.status}`)
+    }
+
+    const data = await response.json()
+    const content = data.choices?.[0]?.message?.content
+    if (content) {
+      const title = `【${index + 1}】${product.title}`
+      return formatScriptContent(title, content.trim())
+    }
+    throw new Error('AI 返回内容为空')
+  } catch (error) {
+    console.error('AI 生成话术失败:', error)
+    return generateProductScript(product, index)
+  }
+}
+
+// 重新生成当前话术
+async function handleRegenerateCurrent() {
+  const currentIndex = store.currentScriptIndex
+  const products = store.getCurrentProducts()
+  const product = products[currentIndex]
+
+  if (!product) {
+    toast.error('当前没有商品')
+    return
+  }
+
+  if (!store.aiScriptSettings.apiKey) {
+    toast.warning('请先在 AI 设置中配置 API 秘钥')
+    showAISettings.value = true
+    return
+  }
+
+  toast.info('正在重新生成话术...')
+  store.addLog('info', `正在重新生成第 ${currentIndex + 1} 条话术...`)
+
+  const newContent = await generateProductScriptByAI(product, currentIndex)
+  const existingScript = store.aiScripts[currentIndex]
+  const newScript = {
+    id: existingScript?.id || String(currentIndex + 1),
+    productId: product.sku,
+    content: newContent,
+  }
+  store.updateAIScript(currentIndex, newScript)
+
+  toast.success('话术已重新生成')
+  store.addLog('success', `第 ${currentIndex + 1} 条话术已重新生成`)
+}
+
+// 重新生成全部话术
+async function handleRegenerateAll() {
+  const products = store.getCurrentProducts()
+  if (products.length === 0) {
+    toast.error('没有商品数据')
+    return
+  }
+
+  if (!store.aiScriptSettings.apiKey) {
+    toast.warning('请先在 AI 设置中配置 API 秘钥')
+    showAISettings.value = true
+    return
+  }
+
+  toast.info('正在重新生成全部话术，请稍候...')
+  store.addLog('info', `开始重新生成全部 ${products.length} 条话术...`)
+
+  const newScripts = []
+  for (let i = 0; i < products.length; i++) {
+    const product = products[i]!
+    const content = await generateProductScriptByAI(product, i)
+    newScripts.push({
+      id: String(i + 1),
+      productId: product.sku,
+      content,
+    })
+
+    // 每生成一条就更新显示
+    store.setAIScripts([...newScripts])
+
+    // 添加延迟避免 API 限流
+    if (i < products.length - 1) {
+      await new Promise((resolve) => setTimeout(resolve, 500))
+    }
+  }
+
+  toast.success(`已重新生成全部 ${products.length} 条话术`)
+  store.addLog('success', `已完成全部 ${products.length} 条话术重新生成`)
 }
 
 // 后台批量生成所有商品的 AI 话术
@@ -898,6 +1057,8 @@ onUnmounted(() => {
             @open-settings="showAISettings = true"
             @start-explain="handleStartExplain"
             @end-explain="handleEndExplain"
+            @regenerate-current="handleRegenerateCurrent"
+            @regenerate-all="handleRegenerateAll"
           />
         </div>
       </div>

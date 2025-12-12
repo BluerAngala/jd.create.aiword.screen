@@ -26,6 +26,8 @@ interface Emits {
   (e: 'openSettings'): void
   (e: 'startExplain', productId: string): void
   (e: 'endExplain', productId: string): void
+  (e: 'regenerateCurrent'): void
+  (e: 'regenerateAll'): void
 }
 
 // 话术投屏状态
@@ -213,8 +215,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="card bg-base-100 shadow-sm h-full">
-    <div class="card-body p-4 flex flex-col">
+  <div class="card bg-base-100 shadow-sm h-full overflow-hidden">
+    <div class="card-body p-4 flex flex-col h-full overflow-hidden">
       <!-- 标题栏 -->
       <div class="flex items-center justify-between mb-2">
         <div class="flex items-center gap-2">
@@ -222,11 +224,7 @@ onUnmounted(() => {
             <Icon icon="mdi:robot" class="text-lg" />
             AI 话术提词
           </h3>
-          <!-- 话术/商品数量 -->
-          <span v-if="scriptProductCount" class="badge badge-ghost badge-sm">
-            {{ scriptProductCount }}
-          </span>
-          <!-- 话术投屏按钮 -->
+            <!-- 话术投屏按钮 -->
           <button
             class="btn btn-xs"
             :class="isScriptScreening ? 'btn-error' : 'btn-success'"
@@ -235,23 +233,23 @@ onUnmounted(() => {
             <Icon :icon="isScriptScreening ? 'mdi:cast-off' : 'mdi:cast'" class="text-sm" />
             {{ isScriptScreening ? '停止' : '投屏' }}
           </button>
+         
+        
         </div>
         <div class="flex items-center gap-1">
+           <!-- 话术/商品数量 -->
+          <span v-if="scriptProductCount" class="badge badge-ghost badge-sm">
+            话术生成进度 {{ scriptProductCount }}
+          </span>
+          <!-- 重建所有话术 -->
           <button
             class="btn btn-outline btn-xs"
-            :disabled="fontSize <= minFontSize"
-            @click="decreaseFontSize"
+            :disabled="scripts.length === 0"
+            title="重新生成全部话术"
+            @click="emit('regenerateAll')"
           >
-            <Icon icon="mdi:format-font-size-decrease" class="text-sm" />
-            缩小
-          </button>
-          <button
-            class="btn btn-outline btn-xs"
-            :disabled="fontSize >= maxFontSize"
-            @click="increaseFontSize"
-          >
-            <Icon icon="mdi:format-font-size-increase" class="text-sm" />
-            放大
+            <Icon icon="mdi:refresh-auto" class="text-sm" />
+            重建话术
           </button>
           <button class="btn btn-outline btn-xs" @click="emit('openSettings')">
             <Icon icon="mdi:cog" class="text-sm" />
@@ -272,20 +270,49 @@ onUnmounted(() => {
       </div>
 
       <!-- 话术内容 -->
-      <div v-else class="flex-1 flex flex-col">
+      <div v-else class="flex-1 flex flex-col min-h-0 overflow-hidden">
         <!-- 商品信息提示 -->
-        <div v-if="currentScript?.productId" class="text-sm font-bold text-base-content mb-1">
-          <Icon icon="mdi:package-variant" class="inline" />
-          商品 ID: {{ currentScript.productId }}
-          <span v-if="isExplaining" class="badge badge-success badge-xs ml-1">讲解中</span>
+        <div v-if="currentScript?.productId" class="flex items-center justify-between mb-1">
+          <div class="text-sm font-bold text-base-content">
+            <Icon icon="mdi:package-variant" class="inline" />
+            商品 ID: {{ currentScript.productId }}
+            <span v-if="isExplaining" class="badge badge-success badge-xs ml-1">讲解中</span>
+          </div>
+          <div class="flex items-center gap-1">
+            <button
+              class="btn btn-outline btn-xs"
+              :disabled="fontSize <= minFontSize"
+              @click="decreaseFontSize"
+            >
+              <Icon icon="mdi:format-font-size-decrease" class="text-sm" />
+              缩小
+            </button>
+            <button
+              class="btn btn-outline btn-xs"
+              :disabled="fontSize >= maxFontSize"
+              @click="increaseFontSize"
+            >
+              <Icon icon="mdi:format-font-size-increase" class="text-sm" />
+              放大
+            </button>
+            <button
+              class="btn btn-outline btn-xs"
+              :disabled="scripts.length === 0"
+              title="重新生成当前话术"
+              @click="emit('regenerateCurrent')"
+            >
+              <Icon icon="mdi:refresh" class="text-sm" />
+              重新生成
+            </button>
+          </div>
         </div>
 
-        <div class="flex-1 overflow-y-auto bg-base-200/50 rounded-lg p-3 mb-3 relative">
+        <div class="flex-1 min-h-0 overflow-y-auto bg-base-200/50 rounded-lg p-3 mb-3 relative">
           <p class="leading-relaxed whitespace-pre-wrap" :style="{ fontSize: fontSize + 'rem' }">
             {{ currentScript?.content || '' }}
           </p>
           <!-- 字数统计 -->
-          <span class="absolute bottom-2 right-2 text-xs text-base-content/40">{{ wordCount }} 字</span>
+          <span class="sticky bottom-0 right-0 float-right text-xs text-base-content/40 bg-base-200/80 px-1 rounded">{{ wordCount }} 字</span>
         </div>
 
         <!-- 切换按钮 - 始终显示上下一条 -->

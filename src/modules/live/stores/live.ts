@@ -240,9 +240,18 @@ export const useLiveStore = defineStore('live', () => {
   }
 
   // AI 话术方法
-  function setAIScripts(scripts: AIScript[]) {
+  function setAIScripts(scripts: AIScript[], resetIndex = true) {
     aiScripts.value = scripts
-    currentScriptIndex.value = 0
+    if (resetIndex) {
+      currentScriptIndex.value = 0
+    }
+  }
+
+  // 更新单条话术（不重置索引）
+  function updateAIScript(index: number, script: AIScript) {
+    if (index >= 0 && index < aiScripts.value.length) {
+      aiScripts.value[index] = script
+    }
   }
 
   function nextScript() {
@@ -396,6 +405,7 @@ export const useLiveStore = defineStore('live', () => {
     startCountdown,
     stopCountdown,
     setAIScripts,
+    updateAIScript,
     nextScript,
     prevScript,
     saveAIScriptSettings,

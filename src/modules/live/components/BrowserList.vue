@@ -215,7 +215,7 @@ function handleRefresh() {
         >
           <Icon icon="mdi:account-circle" class="text-2xl text-base-content/40" />
           <div class="flex-1 min-w-0">
-            <div class="font-medium text-sm truncate">{{ browser.name }}</div>
+            <div class="font-medium text-sm truncate">浏览器 {{ browser.name }}</div>
             <div v-if="browser.jdAccount?.isLoggedIn" class="text-xs text-success flex items-center gap-1">
               <Icon icon="mdi:check-circle" class="text-xs" />
               {{ browser.jdAccount.nickname }}
