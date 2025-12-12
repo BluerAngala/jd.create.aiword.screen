@@ -20,6 +20,7 @@ const error = ref(false)
 // 右键菜单状态
 const showContextMenu = ref(false)
 const menuPosition = ref({ x: 0, y: 0 })
+let menuTimer: number | null = null
 
 onMounted(() => {
   // 从 hash URL 参数获取图片地址（格式：/#/screen-content?imageUrl=xxx）
@@ -53,6 +54,11 @@ function handleContextMenu(e: MouseEvent) {
   e.preventDefault()
   menuPosition.value = { x: e.clientX, y: e.clientY }
   showContextMenu.value = true
+  // 2秒后自动关闭
+  if (menuTimer) clearTimeout(menuTimer)
+  menuTimer = window.setTimeout(() => {
+    showContextMenu.value = false
+  }, 2000)
 }
 
 // 关闭窗口（调用后端）

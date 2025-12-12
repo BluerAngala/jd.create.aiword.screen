@@ -3,8 +3,10 @@
  * 倒计时组件
  * 显示距离直播开始的剩余时间，支持设置讲解时间和休息时间
  */
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { Icon } from '@iconify/vue'
+import { invoke } from '@tauri-apps/api/core'
+import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 
 interface Props {
   targetTime: Date | null
@@ -18,6 +20,12 @@ interface Emits {
   (e: 'update:explainDuration', value: number): void
   (e: 'update:restDuration', value: number): void
 }
+
+// 倒计时投屏状态
+const isCountdownScreening = ref(false)
+
+// 窗口关闭事件监听器
+let unlistenClose: UnlistenFn | null = null
 
 const props = withDefaults(defineProps<Props>(), {
   explainDuration: 60,
@@ -48,14 +56,14 @@ watch(
 
 // 更新讲解时长
 function updateExplainDuration(value: number) {
-  const val = Math.max(10, Math.min(600, value)) // 10秒 - 10分钟
+  const val = Math.max(1, value) // 最小1秒，无上限
   localExplainDuration.value = val
   emit('update:explainDuration', val)
 }
 
 // 更新休息时长
 function updateRestDuration(value: number) {
-  const val = Math.max(5, Math.min(120, value)) // 5秒 - 2分钟
+  const val = Math.max(1, value) // 最小1秒，无上限
   localRestDuration.value = val
   emit('update:restDuration', val)
 }
@@ -113,9 +121,51 @@ watch(
   { immediate: true },
 )
 
+onMounted(async () => {
+  // 监听倒计时投屏窗口关闭事件
+  unlistenClose = await listen('screen-countdown-closed', () => {
+    isCountdownScreening.value = false
+  })
+})
+
 onUnmounted(() => {
   stopTimer()
+  if (unlistenClose) {
+    unlistenClose()
+  }
 })
+
+// 开启倒计时投屏
+async function startCountdownScreen() {
+  try {
+    const targetTimeStr = props.targetTime ? encodeURIComponent(props.targetTime.toISOString()) : ''
+    await invoke('create_screen_window', {
+      label: 'screen-countdown',
+      title: '倒计时投屏',
+      width: 400,
+      height: 200,
+      transparent: false,
+      alwaysOnTop: true,
+      decorations: false,
+      resizable: true,
+      backgroundColor: '#000000',
+      extraParams: `targetTime=${targetTimeStr}`,
+    })
+    isCountdownScreening.value = true
+  } catch (error) {
+    console.error('开启倒计时投屏失败:', error)
+  }
+}
+
+// 关闭倒计时投屏
+async function stopCountdownScreen() {
+  try {
+    await invoke('close_screen_window', { label: 'screen-countdown' })
+  } catch {
+    // 忽略
+  }
+  isCountdownScreening.value = false
+}
 </script>
 
 <template>
@@ -129,8 +179,7 @@ onUnmounted(() => {
             <input
               type="number"
               :value="localExplainDuration"
-              min="10"
-              max="600"
+              min="1"
               class="input input-bordered input-xs w-16 text-center"
               @input="updateExplainDuration(Number(($event.target as HTMLInputElement).value))"
             />
@@ -140,10 +189,20 @@ onUnmounted(() => {
 
         <!-- 中间：倒计时 -->
         <div class="flex-1 flex flex-col items-center">
-          <h3 class="card-title text-sm mb-2">
-            <Icon icon="mdi:timer-outline" class="text-lg" />
-            倒计时
-          </h3>
+          <div class="flex items-center gap-2 mb-2">
+            <h3 class="card-title text-sm">
+              <Icon icon="mdi:timer-outline" class="text-lg" />
+              倒计时
+            </h3>
+            <button
+              class="btn btn-xs"
+              :class="isCountdownScreening ? 'btn-error' : 'btn-ghost'"
+              @click="isCountdownScreening ? stopCountdownScreen() : startCountdownScreen()"
+            >
+              <Icon :icon="isCountdownScreening ? 'mdi:cast-off' : 'mdi:cast'" class="text-sm" />
+              {{ isCountdownScreening ? '停止' : '投屏' }}
+            </button>
+          </div>
 
           <!-- 未开始状态 -->
           <div
@@ -179,8 +238,7 @@ onUnmounted(() => {
             <input
               type="number"
               :value="localRestDuration"
-              min="5"
-              max="120"
+              min="1"
               class="input input-bordered input-xs w-16 text-center"
               @input="updateRestDuration(Number(($event.target as HTMLInputElement).value))"
             />

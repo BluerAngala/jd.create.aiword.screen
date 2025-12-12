@@ -24,8 +24,15 @@ pub async fn create_screen_window(
         let _ = existing.close();
     }
 
+    // 根据 label 决定路由路径
+    let route = match label.as_str() {
+        "screen-countdown" => "screen-countdown",
+        "screen-script" => "screen-script",
+        _ => "screen-content",
+    };
+
     // 构建窗口 URL（使用 hash 路由兼容性更好）
-    let url = format!("/#/screen-content?{}", extra_params.unwrap_or_default());
+    let url = format!("/#/{}?{}", route, extra_params.unwrap_or_default());
 
     // 创建独立窗口
     WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(url.into()))
@@ -49,8 +56,8 @@ pub async fn create_screen_window(
 pub async fn close_screen_window(app: tauri::AppHandle, label: String) -> Result<(), String> {
     if let Some(window) = app.get_webview_window(&label) {
         window.close().map_err(|e| e.to_string())?;
-        // 通知主窗口投屏已关闭
-        let _ = app.emit("screen-window-closed", ());
+        // 通知主窗口投屏已关闭（发送带标签的事件）
+        let _ = app.emit(&format!("{}-closed", label), ());
     }
     Ok(())
 }

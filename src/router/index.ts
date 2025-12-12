@@ -13,6 +13,16 @@ const coreRoutes: RouteRecordRaw[] = [
     name: 'ScreenContent',
     component: () => import('@/modules/live/views/ScreenContent.vue'),
   },
+  {
+    path: '/screen-countdown',
+    name: 'ScreenCountdown',
+    component: () => import('@/modules/live/views/ScreenCountdown.vue'),
+  },
+  {
+    path: '/screen-script',
+    name: 'ScreenScript',
+    component: () => import('@/modules/live/views/ScreenScript.vue'),
+  },
 ]
 
 // === 合并所有路由 ===

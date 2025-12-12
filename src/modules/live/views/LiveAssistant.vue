@@ -637,14 +637,14 @@ function formatDate(dateStr: string): string {
 }
 
 // 窗口关闭事件监听器
-let unlistenWindowDestroyed: UnlistenFn | null = null
+let unlistenScreenWindow: UnlistenFn | null = null
 
 // 组件挂载时初始化
 onMounted(async () => {
   await store.initLiveSessions()
 
-  // 监听投屏窗口销毁事件，同步投屏状态
-  unlistenWindowDestroyed = await listen('screen-window-closed', () => {
+  // 监听图片投屏窗口关闭事件
+  unlistenScreenWindow = await listen('screen-window-closed', () => {
     isScreening.value = false
     screenImageUrl.value = null
     store.addLog('info', '投屏窗口已关闭')
@@ -653,8 +653,8 @@ onMounted(async () => {
 
 // 组件卸载时清理监听器
 onUnmounted(() => {
-  if (unlistenWindowDestroyed) {
-    unlistenWindowDestroyed()
+  if (unlistenScreenWindow) {
+    unlistenScreenWindow()
   }
 })
 </script>

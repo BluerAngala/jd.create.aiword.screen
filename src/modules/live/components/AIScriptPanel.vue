@@ -3,8 +3,10 @@
  * AI 话术面板组件
  * 显示 AI 生成的直播话术内容，支持商品讲解控制
  */
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { Icon } from '@iconify/vue'
+import { invoke } from '@tauri-apps/api/core'
+import { emit as tauriEmit, listen, type UnlistenFn } from '@tauri-apps/api/event'
 import type { AIScript } from '../types'
 
 interface Props {
@@ -22,6 +24,12 @@ interface Emits {
   (e: 'startExplain', productId: string): void
   (e: 'endExplain', productId: string): void
 }
+
+// 话术投屏状态
+const isScriptScreening = ref(false)
+
+// 窗口关闭事件监听器
+let unlistenClose: UnlistenFn | null = null
 
 const props = withDefaults(defineProps<Props>(), {
   totalProducts: 0,
@@ -111,6 +119,76 @@ function handleStartFirstExplain() {
     emit('startExplain', productId)
   }
 }
+
+// 开启话术投屏
+async function startScriptScreen() {
+  try {
+    const scriptsData = encodeURIComponent(JSON.stringify(props.scripts))
+    await invoke('create_screen_window', {
+      label: 'screen-script',
+      title: '话术投屏',
+      width: 500,
+      height: 400,
+      transparent: false,
+      alwaysOnTop: true,
+      decorations: false,
+      resizable: true,
+      backgroundColor: '#000000',
+      extraParams: `scripts=${scriptsData}&index=${props.currentIndex}`,
+    })
+    isScriptScreening.value = true
+  } catch (error) {
+    console.error('开启话术投屏失败:', error)
+  }
+}
+
+// 关闭话术投屏
+async function stopScriptScreen() {
+  try {
+    await invoke('close_screen_window', { label: 'screen-script' })
+  } catch {
+    // 忽略
+  }
+  isScriptScreening.value = false
+}
+
+// 监听话术变化，同步到投屏窗口
+watch(
+  [() => props.currentIndex, () => props.scripts],
+  () => {
+    if (isScriptScreening.value) {
+      tauriEmit('script-sync-to-screen', {
+        scripts: props.scripts,
+        index: props.currentIndex,
+      })
+    }
+  },
+)
+
+// 投屏窗口操作同步监听器
+let unlistenSync: UnlistenFn | null = null
+
+onMounted(async () => {
+  // 监听话术投屏窗口关闭事件
+  unlistenClose = await listen('screen-script-closed', () => {
+    isScriptScreening.value = false
+  })
+
+  // 监听投屏窗口的操作同步
+  unlistenSync = await listen<{ index: number }>('script-sync-to-main', (event) => {
+    const newIndex = event.payload.index
+    if (newIndex > props.currentIndex) {
+      emit('next')
+    } else if (newIndex < props.currentIndex) {
+      emit('prev')
+    }
+  })
+})
+
+onUnmounted(() => {
+  if (unlistenClose) unlistenClose()
+  if (unlistenSync) unlistenSync()
+})
 </script>
 
 <template>
@@ -127,6 +205,15 @@ function handleStartFirstExplain() {
           <span v-if="scriptProductCount" class="badge badge-ghost badge-sm">
             {{ scriptProductCount }}
           </span>
+          <!-- 话术投屏按钮 -->
+          <button
+            class="btn btn-xs"
+            :class="isScriptScreening ? 'btn-error' : 'btn-ghost'"
+            @click="isScriptScreening ? stopScriptScreen() : startScriptScreen()"
+          >
+            <Icon :icon="isScriptScreening ? 'mdi:cast-off' : 'mdi:cast'" class="text-sm" />
+            {{ isScriptScreening ? '停止' : '投屏' }}
+          </button>
         </div>
         <div class="flex items-center gap-1">
           <button

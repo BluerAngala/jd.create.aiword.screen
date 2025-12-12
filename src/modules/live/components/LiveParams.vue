@@ -109,14 +109,14 @@ function setQuickTime(minutes: number) {
         :value="startTimeStr"
         :min="minTimeStr"
         :max="maxTimeStr"
-        class="input input-bordered input-sm w-48"
+        class="input input-bordered input-sm w-40"
         @input="updateStartTime(($event.target as HTMLInputElement).value)"
       />
       <!-- 快捷时间选择 -->
       <div class="dropdown dropdown-top dropdown-end">
         <div tabindex="0" role="button" class="btn btn-sm btn-ghost">
           <Icon icon="mdi:clock-fast" />
-          快捷
+          快捷时间
         </div>
         <ul
           tabindex="0"

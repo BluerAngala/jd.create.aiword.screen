@@ -23,8 +23,8 @@ const announcement = ref('欢迎使用京东直播助手，请先选择浏览器
 // 设置弹窗
 const showSettings = ref(false)
 
-// 是否显示导航栏（投屏内容页面隐藏）
-const showNavbar = () => route.name !== 'ScreenContent'
+// 是否显示导航栏（投屏页面隐藏）
+const showNavbar = () => !['ScreenContent', 'ScreenCountdown', 'ScreenScript'].includes(route.name as string)
 </script>
 
 <template>
