@@ -55,6 +55,7 @@ pub fn run() {
             jd::get_h5_url,
             jd::start_explain,
             jd::end_explain,
+            jd::get_cover_images,
             // screen 模块
             screen::create_screen_window,
             screen::close_screen_window,

@@ -1,6 +1,53 @@
 @import "tailwindcss";
 @plugin "daisyui" {
-  themes: all;
+  themes: light --default, dark, business;
+}
+
+/* 商务风格主题覆盖 */
+[data-theme="light"] {
+  --color-primary: #2563eb;        /* 蓝色 - 主要操作 */
+  --color-primary-content: #ffffff;
+  --color-secondary: #1f2937;      /* 深灰/黑色 - 次要操作 */
+  --color-secondary-content: #ffffff;
+  --color-accent: #2563eb;         /* 蓝色 - 强调 */
+  --color-accent-content: #ffffff;
+  --color-neutral: #374151;        /* 中性灰 */
+  --color-neutral-content: #ffffff;
+  --color-base-100: #ffffff;       /* 背景白 */
+  --color-base-200: #f3f4f6;       /* 浅灰背景 */
+  --color-base-300: #e5e7eb;       /* 边框灰 */
+  --color-base-content: #1f2937;   /* 文字黑 */
+  --color-info: #2563eb;           /* 蓝色 - 信息 */
+  --color-info-content: #ffffff;
+  --color-success: #16a34a;        /* 绿色 - 成功 */
+  --color-success-content: #ffffff;
+  --color-warning: #ca8a04;        /* 黄色 - 警告 */
+  --color-warning-content: #ffffff;
+  --color-error: #dc2626;          /* 红色 - 错误 */
+  --color-error-content: #ffffff;
+}
+
+[data-theme="dark"] {
+  --color-primary: #3b82f6;        /* 蓝色 - 主要操作 */
+  --color-primary-content: #ffffff;
+  --color-secondary: #4b5563;      /* 灰色 - 次要操作 */
+  --color-secondary-content: #ffffff;
+  --color-accent: #3b82f6;         /* 蓝色 - 强调 */
+  --color-accent-content: #ffffff;
+  --color-neutral: #1f2937;        /* 深灰 */
+  --color-neutral-content: #ffffff;
+  --color-base-100: #111827;       /* 深色背景 */
+  --color-base-200: #1f2937;       /* 稍浅背景 */
+  --color-base-300: #374151;       /* 边框 */
+  --color-base-content: #f9fafb;   /* 文字白 */
+  --color-info: #3b82f6;           /* 蓝色 - 信息 */
+  --color-info-content: #ffffff;
+  --color-success: #22c55e;        /* 绿色 - 成功 */
+  --color-success-content: #ffffff;
+  --color-warning: #eab308;        /* 黄色 - 警告 */
+  --color-warning-content: #1f2937;
+  --color-error: #ef4444;          /* 红色 - 错误 */
+  --color-error-content: #ffffff;
 }
 
 /* 自定义全局样式 */

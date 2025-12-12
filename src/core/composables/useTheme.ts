@@ -1,13 +1,7 @@
 import { ref, onMounted } from 'vue'
 
-// 可用主题列表
-export const themes = [
-  'light', 'dark', 'cupcake', 'bumblebee', 'emerald', 'corporate',
-  'synthwave', 'retro', 'cyberpunk', 'valentine', 'halloween', 'garden',
-  'forest', 'aqua', 'lofi', 'pastel', 'fantasy', 'wireframe', 'black',
-  'luxury', 'dracula', 'cmyk', 'autumn', 'business', 'acid', 'lemonade',
-  'night', 'coffee', 'winter', 'dim', 'nord', 'sunset',
-]
+// 可用主题列表（商务风格）
+export const themes = ['light', 'dark', 'business']
 
 const currentTheme = ref('light')
 

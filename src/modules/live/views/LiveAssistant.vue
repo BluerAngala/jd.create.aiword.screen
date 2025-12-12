@@ -5,7 +5,9 @@
  */
 import { ref, computed } from 'vue'
 import { Icon } from '@iconify/vue'
+import { invoke } from '@tauri-apps/api/core'
 import { useLiveStore } from '../stores/live'
+import { useToast } from '@/core/composables/useToast'
 import BrowserList from '../components/BrowserList.vue'
 import ProductConfig from '../components/ProductConfig.vue'
 import ImageConfig from '../components/ImageConfig.vue'
@@ -14,9 +16,13 @@ import LiveParams from '../components/LiveParams.vue'
 import CountdownTimer from '../components/CountdownTimer.vue'
 import AIScriptPanel from '../components/AIScriptPanel.vue'
 import AISettingsModal from '../components/AISettingsModal.vue'
-import type { BrowserInfo, ImageSettings, LiveParameters, AIScriptSettings } from '../types'
+import type { BrowserInfo, ImageSettings, LiveParameters, AIScriptSettings, Cookie } from '../types'
 
 const store = useLiveStore()
+const toast = useToast()
+
+// 直播间标题配置存储 key
+const TITLE_SETTINGS_KEY = 'jd-live-title-settings'
 
 // 手风琴展开状态
 const expandedPanel = ref<string | null>(null)
@@ -66,13 +72,113 @@ function handleLiveParamsUpdate(params: LiveParameters) {
   store.setLiveParams(params)
 }
 
+// 读取 Cookie（通过 Tauri 后端）
+async function readCookiesFromFile(browserId: string): Promise<Cookie[]> {
+  try {
+    // 重新获取 Cookie
+    const cookies = await invoke<Cookie[]>('read_chrome_cookies', {
+      domain: 'jd.com',
+      profile: browserId,
+    })
+    return cookies
+  } catch {
+    return []
+  }
+}
+
+// 获取直播间标题配置
+function getTitleSettings(): { titles: string[] } {
+  try {
+    const saved = localStorage.getItem(TITLE_SETTINGS_KEY)
+    if (saved) {
+      return JSON.parse(saved)
+    }
+  } catch {
+    // 忽略
+  }
+  return { titles: [] }
+}
+
 // 新建直播间
 async function handleCreateLiveRoom() {
-  store.addLog('info', '正在创建直播间...')
-  setTimeout(() => {
-    store.setLiveRoomCreated(true)
-    store.addLog('success', '直播间创建成功')
-  }, 1500)
+  store.addLog('info', '========== 开始创建直播间检查 ==========')
+
+  // 1. 检查是否已选中浏览器并且登录成功
+  store.addLog('info', '【检查1】检查浏览器选择和登录状态...')
+  const selectedBrowser = store.selectedBrowser
+  if (!selectedBrowser) {
+    const msg = '未选择浏览器，请先选择一个浏览器'
+    store.addLog('error', `【检查1】❌ ${msg}`)
+    toast.error(msg)
+    return
+  }
+  store.addLog('info', `【检查1】已选择浏览器: ${selectedBrowser.name}`)
+
+  if (!selectedBrowser.jdAccount?.isLoggedIn) {
+    const msg = '浏览器未登录京东，请先点击浏览器获取登录状态'
+    store.addLog('error', `【检查1】❌ ${msg}`)
+    toast.error(msg)
+    return
+  }
+  store.addLog('success', `【检查1】✓ 浏览器已登录，账号: ${selectedBrowser.jdAccount.nickname}`)
+
+  // 2. 检查直播间标题配置
+  store.addLog('info', '【检查2】检查直播间标题配置...')
+  const titleSettings = getTitleSettings()
+  if (!titleSettings.titles || titleSettings.titles.length === 0) {
+    const msg = '未配置直播间标题，请先设置直播间标题'
+    store.addLog('error', `【检查2】❌ ${msg}`)
+    toast.error(msg)
+    return
+  }
+  // 随机获取一条标题
+  const randomIndex = Math.floor(Math.random() * titleSettings.titles.length)
+  const randomTitle = titleSettings.titles[randomIndex]
+  store.addLog('success', `【检查2】✓ 已配置 ${titleSettings.titles.length} 条标题，随机选中: "${randomTitle}"`)
+
+  // 3. 检查商品文件配置
+  store.addLog('info', '【检查3】检查商品文件配置...')
+  const productFiles = store.productFiles
+  if (!productFiles || productFiles.length === 0) {
+    const msg = '未设置商品文件，请先导入商品文件'
+    store.addLog('error', `【检查3】❌ ${msg}`)
+    toast.error(msg)
+    return
+  }
+  // 检查是否有有效数据
+  const totalProducts = productFiles.reduce((sum, f) => sum + f.uniqueCount, 0)
+  if (totalProducts === 0) {
+    const msg = '商品文件中没有有效数据'
+    store.addLog('error', `【检查3】❌ ${msg}`)
+    toast.error(msg)
+    return
+  }
+  store.addLog(
+    'success',
+    `【检查3】✓ 已配置 ${productFiles.length} 个商品文件，共 ${totalProducts} 条有效商品`,
+  )
+
+  // 4. 调用京东获取封面图片接口
+  store.addLog('info', '【检查4】正在检查封面图片...')
+  try {
+    const cookies = await readCookiesFromFile(selectedBrowser.id)
+    if (cookies.length === 0) {
+      const msg = '无法获取 Cookie，请重新选择浏览器'
+      store.addLog('error', `【检查4】❌ ${msg}`)
+      toast.error(msg)
+      return
+    }
+    const coverResult = await invoke<unknown[]>('get_cover_images', { cookies })
+    store.addLog('success', `【检查4】✓ 获取到 ${Array.isArray(coverResult) ? coverResult.length : 0} 张封面图片`)
+  } catch (error) {
+    const msg = `获取封面图片失败: ${error}`
+    store.addLog('error', `【检查4】❌ ${msg}`)
+    toast.error(msg)
+    return
+  }
+
+  store.addLog('success', '========== 所有检查通过 ==========')
+  toast.success('所有检查通过')
 }
 
 // 开始直播

@@ -592,3 +592,80 @@ pub async fn end_explain(
 
     Err(data.error_msg.unwrap_or_else(|| "结束讲解失败".to_string()))
 }
+
+// ============ 封面图片相关 ============
+
+/// 封面图片项
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CoverImage {
+    pub four_to_three: Option<String>,
+    pub two_to_one: Option<String>,
+    pub one_to_one: Option<String>,
+    pub three_to_four: Option<String>,
+}
+
+/// 封面图片响应
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CoverImagesResponse {
+    pub success: bool,
+    pub code: i32,
+    pub error_msg: Option<String>,
+    pub data: Option<Vec<CoverImage>>,
+}
+
+/// 获取封面图片列表
+#[tauri::command]
+pub async fn get_cover_images(cookies: Vec<Cookie>) -> Result<Vec<CoverImage>, String> {
+    info!("[封面图片] 开始获取封面图片列表");
+
+    let cookie_str = cookies_to_string(&cookies);
+    let url = "https://api.m.jd.com/live_pc_recentUsedIndex?appid=plat-live-operate&functionId=live_pc_recentUsedIndex&PRICE_COLOR_API_TAG=true&use_color_api=true";
+
+    let client = reqwest::Client::new();
+    let mut headers = reqwest::header::HeaderMap::new();
+    if let Ok(value) = cookie_str.parse() {
+        headers.insert(reqwest::header::COOKIE, value);
+    }
+    headers.insert(
+        reqwest::header::USER_AGENT,
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
+            .parse()
+            .unwrap(),
+    );
+    headers.insert(
+        reqwest::header::REFERER,
+        "https://jlive.jd.com/".parse().unwrap(),
+    );
+    headers.insert(
+        reqwest::header::CONTENT_TYPE,
+        "application/x-www-form-urlencoded".parse().unwrap(),
+    );
+
+    let body = "appid=plat-live-operate&functionId=live_pc_recentUsedIndex&body={}";
+
+    let response = client
+        .post(url)
+        .headers(headers)
+        .body(body)
+        .send()
+        .await
+        .map_err(|e| format!("请求失败: {}", e))?;
+
+    let response_text = response
+        .text()
+        .await
+        .map_err(|e| format!("读取响应失败: {}", e))?;
+
+    info!("[封面图片] 响应: {}", response_text);
+
+    let data: CoverImagesResponse =
+        serde_json::from_str(&response_text).map_err(|e| format!("解析响应失败: {}", e))?;
+
+    if data.success {
+        return Ok(data.data.unwrap_or_default());
+    }
+
+    Err(data.error_msg.unwrap_or_else(|| "获取封面图片失败".to_string()))
+}
