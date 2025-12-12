@@ -12,6 +12,7 @@ import type {
 } from '../types'
 
 const SETTINGS_KEY = 'jd-live-assistant-settings'
+const AI_SETTINGS_KEY = 'jd-live-assistant-ai-settings'
 
 // 默认设置
 const defaultSettings: AppSettings = {
@@ -63,11 +64,7 @@ export const useLiveStore = defineStore('live', () => {
   // AI 话术
   const aiScripts = ref<AIScript[]>([])
   const currentScriptIndex = ref(0)
-  const aiScriptSettings = ref<AIScriptSettings>({
-    model: 'gpt-3.5-turbo',
-    apiKey: '',
-    prompt: '你是一个专业的直播带货主播，请根据商品信息生成吸引人的直播话术。',
-  })
+  const aiScriptSettings = ref<AIScriptSettings>(loadAISettings())
 
   // 计算属性
   const selectedBrowser = computed(() =>
@@ -92,6 +89,23 @@ export const useLiveStore = defineStore('live', () => {
   function saveSettings(newSettings: AppSettings) {
     settings.value = newSettings
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(newSettings))
+  }
+
+  // AI 设置相关方法
+  function loadAISettings(): AIScriptSettings {
+    try {
+      const saved = localStorage.getItem(AI_SETTINGS_KEY)
+      if (saved) {
+        return JSON.parse(saved)
+      }
+    } catch {
+      // 忽略解析错误
+    }
+    return {
+      model: 'Qwen/Qwen2-7B-Instruct',
+      apiKey: '',
+      prompt: '你是一个专业的直播带货主播，请根据商品信息生成吸引人的直播话术。',
+    }
   }
 
 
@@ -186,6 +200,7 @@ export const useLiveStore = defineStore('live', () => {
 
   function saveAIScriptSettings(newSettings: AIScriptSettings) {
     aiScriptSettings.value = newSettings
+    localStorage.setItem(AI_SETTINGS_KEY, JSON.stringify(newSettings))
   }
 
   return {

@@ -82,7 +82,7 @@ const progress = computed(() => {
           </button>
           <button class="btn btn-outline btn-xs" @click="emit('openSettings')">
             <Icon icon="mdi:cog" class="text-sm" />
-            设置
+            AI 设置
           </button>
           <span class="text-xs text-base-content/60 ml-1">{{ progress }}</span>
         </div>

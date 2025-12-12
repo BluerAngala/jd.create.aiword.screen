@@ -1,15 +1,23 @@
 <script setup lang="ts">
 /**
  * AI 设置弹窗组件
- * 配置 AI 模型、秘钥、提示词
+ * 配置 SiliconFlow API 秘钥、模型、提示词
  */
 import { ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
+
+// 默认模型
+const DEFAULT_MODEL = 'Qwen/Qwen2-7B-Instruct'
 
 interface AISettings {
   model: string
   apiKey: string
   prompt: string
+}
+
+interface SiliconFlowModel {
+  id: string
+  object: string
 }
 
 interface Props {
@@ -26,6 +34,9 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const localSettings = ref<AISettings>({ ...props.settings })
+const models = ref<SiliconFlowModel[]>([])
+const isLoadingModels = ref(false)
+const modelError = ref('')
 
 // 监听 settings 变化
 watch(
@@ -34,6 +45,62 @@ watch(
     localSettings.value = { ...newSettings }
   },
 )
+
+// 监听弹窗打开时加载模型
+watch(
+  () => props.visible,
+  (visible) => {
+    if (visible && localSettings.value.apiKey) {
+      fetchModels()
+    }
+  },
+)
+
+// 监听 API Key 变化，自动获取模型
+let debounceTimer: ReturnType<typeof setTimeout> | null = null
+watch(
+  () => localSettings.value.apiKey,
+  (newKey) => {
+    if (debounceTimer) clearTimeout(debounceTimer)
+    if (newKey && newKey.length > 10) {
+      debounceTimer = setTimeout(() => fetchModels(), 500)
+    }
+  },
+)
+
+// 获取模型列表
+async function fetchModels() {
+  if (!localSettings.value.apiKey) return
+
+  isLoadingModels.value = true
+  modelError.value = ''
+
+  try {
+    const response = await fetch('https://api.siliconflow.cn/v1/models?type=text', {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${localSettings.value.apiKey}`,
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`请求失败: ${response.status}`)
+    }
+
+    const data = await response.json()
+    models.value = data.data || []
+
+    // 如果当前模型不在列表中，使用默认模型
+    if (!localSettings.value.model || !models.value.find((m) => m.id === localSettings.value.model)) {
+      localSettings.value.model = DEFAULT_MODEL
+    }
+  } catch (error) {
+    modelError.value = error instanceof Error ? error.message : '获取模型列表失败'
+    models.value = []
+  } finally {
+    isLoadingModels.value = false
+  }
+}
 
 function handleSave() {
   emit('save', { ...localSettings.value })
@@ -51,30 +118,14 @@ function handleClose() {
     <div class="modal-box max-w-md">
       <h3 class="font-bold text-lg flex items-center gap-2 mb-4">
         <Icon icon="mdi:robot-outline" class="text-xl" />
-        AI 话术设置
+        AI 设置
       </h3>
 
       <div class="space-y-4">
-        <!-- AI 模型 -->
-        <div class="form-control">
-          <label class="label">
-            <span class="label-text">AI 模型</span>
-          </label>
-          <select v-model="localSettings.model" class="select select-bordered w-full">
-            <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-            <option value="gpt-4">GPT-4</option>
-            <option value="gpt-4-turbo">GPT-4 Turbo</option>
-            <option value="claude-3-sonnet">Claude 3 Sonnet</option>
-            <option value="claude-3-opus">Claude 3 Opus</option>
-            <option value="qwen-turbo">通义千问 Turbo</option>
-            <option value="qwen-plus">通义千问 Plus</option>
-          </select>
-        </div>
-
         <!-- API 秘钥 -->
         <div class="form-control">
           <label class="label">
-            <span class="label-text">API 秘钥</span>
+            <span class="label-text">SiliconFlow API 秘钥</span>
           </label>
           <input
             v-model="localSettings.apiKey"
@@ -82,6 +133,37 @@ function handleClose() {
             placeholder="请输入 API Key"
             class="input input-bordered w-full"
           />
+          <label class="label">
+            <span class="label-text-alt text-base-content/50">
+              <a
+                href="https://cloud.siliconflow.cn/account/ak"
+                target="_blank"
+                class="link link-primary"
+              >
+                点击获取 SiliconFlow API Key
+              </a>
+            </span>
+          </label>
+        </div>
+
+        <!-- AI 模型 -->
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">AI 模型</span>
+            <span v-if="isLoadingModels" class="label-text-alt">
+              <Icon icon="mdi:loading" class="animate-spin" />
+              加载中...
+            </span>
+          </label>
+          <select v-model="localSettings.model" class="select select-bordered w-full">
+            <option v-if="models.length === 0" :value="DEFAULT_MODEL">{{ DEFAULT_MODEL }}</option>
+            <option v-for="model in models" :key="model.id" :value="model.id">
+              {{ model.id }}
+            </option>
+          </select>
+          <label v-if="modelError" class="label">
+            <span class="label-text-alt text-error">{{ modelError }}</span>
+          </label>
         </div>
 
         <!-- 提示词 -->
