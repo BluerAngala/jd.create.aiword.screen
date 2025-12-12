@@ -1,0 +1,18 @@
+[build]
+# 使用更多 CPU 核心并行编译
+jobs = 8
+
+[target.x86_64-pc-windows-msvc]
+# Windows 使用更快的链接器
+linker = "rust-lld.exe"
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+
+[profile.dev]
+# 开发模式优化编译速度
+opt-level = 0
+debug = 0
+incremental = true
+
+[profile.dev.package."*"]
+# 依赖包使用优化编译（只编译一次）
+opt-level = 2

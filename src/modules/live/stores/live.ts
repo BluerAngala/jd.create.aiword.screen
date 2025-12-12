@@ -4,6 +4,7 @@ import type {
   AppSettings,
   BrowserInfo,
   ProductItem,
+  ProductFile,
   ImageSettings,
   LiveParameters,
   LogEntry,
@@ -13,6 +14,7 @@ import type {
 
 const SETTINGS_KEY = 'jd-live-assistant-settings'
 const AI_SETTINGS_KEY = 'jd-live-assistant-ai-settings'
+const PRODUCT_FILES_KEY = 'jd-live-assistant-product-files'
 
 // 默认设置
 const defaultSettings: AppSettings = {
@@ -47,6 +49,9 @@ export const useLiveStore = defineStore('live', () => {
 
   // 商品
   const products = ref<ProductItem[]>([])
+
+  // 商品文件列表（持久化）
+  const productFiles = ref<ProductFile[]>(loadProductFiles())
 
   // 图片配置
   const imageConfig = ref<ImageSettings>({ ...defaultImageConfig })
@@ -108,6 +113,46 @@ export const useLiveStore = defineStore('live', () => {
     }
   }
 
+  // 商品文件相关方法
+  function loadProductFiles(): ProductFile[] {
+    try {
+      const saved = localStorage.getItem(PRODUCT_FILES_KEY)
+      if (saved) {
+        return JSON.parse(saved)
+      }
+    } catch {
+      // 忽略解析错误
+    }
+    return []
+  }
+
+  function saveProductFiles() {
+    localStorage.setItem(PRODUCT_FILES_KEY, JSON.stringify(productFiles.value))
+  }
+
+  function addProductFile(file: ProductFile) {
+    productFiles.value.push(file)
+    saveProductFiles()
+  }
+
+  function removeProductFile(id: string) {
+    productFiles.value = productFiles.value.filter((f) => f.id !== id)
+    saveProductFiles()
+  }
+
+  function updateProductFiles(files: ProductFile[]) {
+    productFiles.value = files
+    saveProductFiles()
+  }
+
+  function updateProductFileUseCount(id: string, useCount: number) {
+    const file = productFiles.value.find((f) => f.id === id)
+    if (file) {
+      file.useCount = useCount
+      saveProductFiles()
+    }
+  }
+
 
   // 浏览器相关方法
   function setBrowsers(list: BrowserInfo[]) {
@@ -126,7 +171,7 @@ export const useLiveStore = defineStore('live', () => {
   function updateProduct(id: string, updates: Partial<ProductItem>) {
     const index = products.value.findIndex((p) => p.id === id)
     if (index !== -1) {
-      products.value[index] = { ...products.value[index], ...updates }
+      products.value[index] = { ...products.value[index], ...updates } as ProductItem
     }
   }
 
@@ -210,6 +255,7 @@ export const useLiveStore = defineStore('live', () => {
     selectedBrowserId,
     selectedBrowser,
     products,
+    productFiles,
     imageConfig,
     liveParams,
     logs,
@@ -228,6 +274,10 @@ export const useLiveStore = defineStore('live', () => {
     selectBrowser,
     setProducts,
     updateProduct,
+    addProductFile,
+    removeProductFile,
+    updateProductFiles,
+    updateProductFileUseCount,
     setImageConfig,
     setLiveParams,
     addLog,

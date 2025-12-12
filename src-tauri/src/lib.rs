@@ -41,6 +41,7 @@ pub fn run() {
             utils::get_machine_code,
             utils::get_app_dir,
             utils::save_cookies_to_file,
+            utils::http_post,
             // cookie 模块
             cookie::get_browser_profiles,
             cookie::read_chrome_cookies,

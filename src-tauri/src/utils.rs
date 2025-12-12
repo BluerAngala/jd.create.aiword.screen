@@ -116,3 +116,23 @@ pub async fn async_operation(delay_ms: u64) -> Result<String, String> {
     tokio::time::sleep(tokio::time::Duration::from_millis(delay_ms)).await;
     Ok(format!("异步操作完成，延迟 {} 毫秒", delay_ms))
 }
+
+/// 通用 HTTP POST 请求（用于绕过 CORS 限制）
+#[tauri::command]
+pub async fn http_post(url: String, body: String) -> Result<String, String> {
+    let client = reqwest::Client::new();
+    let response = client
+        .post(&url)
+        .header("Content-Type", "application/json")
+        .body(body)
+        .send()
+        .await
+        .map_err(|e| format!("请求失败: {}", e))?;
+
+    let text = response
+        .text()
+        .await
+        .map_err(|e| format!("读取响应失败: {}", e))?;
+
+    Ok(text)
+}

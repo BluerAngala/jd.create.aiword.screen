@@ -2,7 +2,7 @@
 /**
  * 商品配置组件 - 支持多个 xlsx 文件导入、拖动排序
  */
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import * as XLSX from 'xlsx'
 import { openPath } from '@tauri-apps/plugin-opener'
@@ -28,8 +28,8 @@ const emit = defineEmits<Emits>()
 const liveStore = useLiveStore()
 const fileInput = ref<HTMLInputElement | null>(null)
 
-// 商品文件列表
-const productFiles = ref<ProductFile[]>([])
+// 商品文件列表（从 store 获取，已持久化）
+const productFiles = computed(() => liveStore.productFiles)
 
 // 拖拽状态
 const dragIndex = ref<number | null>(null)
@@ -190,7 +190,7 @@ async function handleFileChange(event: Event) {
       continue
     }
 
-    // 添加到文件列表
+    // 添加到文件列表（通过 store 持久化）
     const productFile: ProductFile = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
       name: file.name,
@@ -199,7 +199,7 @@ async function handleFileChange(event: Event) {
       uniqueCount: result.uniqueCount,
       useCount: 999, // 默认每场直播使用 999 条
     }
-    productFiles.value.push(productFile)
+    liveStore.addProductFile(productFile)
     liveStore.addLog('success', `${file.name}: 共 ${result.totalCount} 条，去重后 ${result.uniqueCount} 条`)
   }
 
@@ -210,7 +210,7 @@ async function handleFileChange(event: Event) {
 function removeFile(id: string) {
   const file = productFiles.value.find((f) => f.id === id)
   if (file) {
-    productFiles.value = productFiles.value.filter((f) => f.id !== id)
+    liveStore.removeProductFile(id)
     liveStore.addLog('info', `已移除文件: ${file.name}`)
   }
 }
@@ -240,7 +240,7 @@ function handleDrop(index: number) {
   const draggedItem = files.splice(dragIndex.value, 1)[0]
   if (draggedItem) {
     files.splice(index, 0, draggedItem)
-    productFiles.value = files
+    liveStore.updateProductFiles(files)
   }
 
   dragIndex.value = null
@@ -332,12 +332,13 @@ function handleDragEnd() {
             <div class="flex items-center gap-1">
               <span class="text-base-content/70">每场添加：</span>
               <input
-                v-model.number="file.useCount"
+                :value="file.useCount"
                 type="number"
                 min="1"
                 :max="file.uniqueCount"
                 class="input input-bordered input-xs w-16 text-center"
                 @click.stop
+                @change="(e) => liveStore.updateProductFileUseCount(file.id, Number((e.target as HTMLInputElement).value))"
               />
               <span class="text-base-content/70">条</span>
             </div>

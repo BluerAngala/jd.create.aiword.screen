@@ -96,18 +96,16 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const machine = await getMachineCode()
 
-      const response = await fetch(VERIFY_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          key: cardCode,
-          product_id: PRODUCT_ID,
-          machineCode: machine,
-          id: userId,
-        }),
+      const body = JSON.stringify({
+        key: cardCode,
+        product_id: PRODUCT_ID,
+        machineCode: machine,
+        id: userId,
       })
 
-      const result = await response.json()
+      // 使用 Tauri 后端发送请求，绕过 CORS 限制
+      const responseText = await invoke<string>('http_post', { url: VERIFY_API, body })
+      const result = JSON.parse(responseText)
       console.log('[Auth] 登录响应:', result)
 
       if (result.code === 0) {
