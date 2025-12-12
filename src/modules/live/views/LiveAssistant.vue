@@ -557,6 +557,9 @@ async function generateAIScripts() {
   store.setAIScripts(scripts)
   store.addLog('info', `已生成 ${scripts.length} 条模板话术，正在调用 AI 优化...`)
 
+  // 保存话术到 session
+  store.saveCurrentSession()
+
   // 如果配置了 API Key，异步调用 AI 更新话术
   if (store.aiScriptSettings.apiKey) {
     for (let i = 0; i < topProducts.length; i++) {
@@ -574,6 +577,8 @@ async function generateAIScripts() {
       }
     }
     store.addLog('success', `已完成前 ${topProducts.length} 条 AI 话术生成`)
+    // AI 优化完成后再保存一次
+    store.saveCurrentSession()
   }
 }
 
@@ -797,6 +802,8 @@ async function generateAllAIScriptsInBackground() {
   }
 
   store.addLog('success', `已完成全部 ${products.length} 条商品话术生成`)
+  // 保存话术到 session
+  store.saveCurrentSession()
   isGeneratingScripts = false
 }
 
@@ -1000,10 +1007,15 @@ function handleSelectLiveRoom(session: LiveSession) {
   store.addLog('success', `已加载直播间: ${session.title}，商品数量: ${session.products.length}`)
   toast.success(`已选择直播间: ${session.title}`)
 
-  // 自动生成 AI 话术
-  generateAIScripts()
-  // 后台批量生成所有商品话术
-  generateAllAIScriptsInBackground()
+  // 如果 session 中有保存的话术，直接恢复；否则重新生成
+  if (session.scripts && session.scripts.length > 0) {
+    store.setAIScripts(session.scripts)
+    store.addLog('info', `已恢复 ${session.scripts.length} 条话术`)
+  } else {
+    // 没有保存的话术，重新生成
+    generateAIScripts()
+    generateAllAIScriptsInBackground()
+  }
 }
 
 // 格式化日期显示
@@ -1106,65 +1118,34 @@ onUnmounted(() => {
       <!-- 左侧：倒计时 + AI 话术（占 3/5） -->
       <div class="w-3/5 flex flex-col gap-3">
         <CountdownTimer
-          :target-time="store.countdownTargetTime"
-          :is-running="store.countdownRunning"
-          :explain-duration="explainDuration"
-          :rest-duration="restDuration"
-          @complete="handleCountdownComplete"
-          @update:explain-duration="explainDuration = $event"
-          @update:rest-duration="restDuration = $event"
-        />
+:target-time="store.countdownTargetTime" :is-running="store.countdownRunning"
+          :explain-duration="explainDuration" :rest-duration="restDuration" @complete="handleCountdownComplete"
+          @update:explain-duration="explainDuration = $event" @update:rest-duration="restDuration = $event" />
         <div class="flex-1 min-h-0 h-full">
           <AIScriptPanel
-            :scripts="store.aiScripts"
-            :current-index="store.currentScriptIndex"
-            :total-products="store.getCurrentProducts().length"
-            :is-explaining="isExplaining"
-            :can-explain="canExplain"
-            :is-countdown-running="store.countdownRunning"
-            :auto-explain-enabled="autoExplainEnabled"
-            :can-switch-next="canSwitchNext"
-            @prev="store.prevScript"
-            @next="handleNextScript"
-            @open-settings="showAISettings = true"
-            @start-explain="handleStartExplain"
-            @end-explain="handleEndExplain"
-            @regenerate-current="handleRegenerateCurrent"
-            @regenerate-all="handleRegenerateAll"
-          />
+:scripts="store.aiScripts" :current-index="store.currentScriptIndex"
+            :total-products="store.getCurrentProducts().length" :is-explaining="isExplaining" :can-explain="canExplain"
+            :is-countdown-running="store.countdownRunning" :auto-explain-enabled="autoExplainEnabled"
+            :can-switch-next="canSwitchNext" @prev="store.prevScript" @next="handleNextScript"
+            @open-settings="showAISettings = true" @start-explain="handleStartExplain" @end-explain="handleEndExplain"
+            @regenerate-current="handleRegenerateCurrent" @regenerate-all="handleRegenerateAll" />
         </div>
       </div>
 
       <!-- 右侧：设置项（占 2/5）- 手风琴模式 -->
       <div class="w-2/5 flex flex-col gap-2 settings-accordion">
         <BrowserList
-          :browsers="store.browsers"
-          :selected-id="store.selectedBrowserId"
-          :loading="browserLoading"
-          :expanded="expandedPanel === 'browser'"
-          @select="handleBrowserSelect"
-          @refresh="handleBrowserRefresh"
-          @update:browsers="handleBrowsersUpdate"
-          @toggle="togglePanel('browser')"
-        />
+:browsers="store.browsers" :selected-id="store.selectedBrowserId" :loading="browserLoading"
+          :expanded="expandedPanel === 'browser'" @select="handleBrowserSelect" @refresh="handleBrowserRefresh"
+          @update:browsers="handleBrowsersUpdate" @toggle="togglePanel('browser')" />
         <ProductConfig :expanded="expandedPanel === 'product'" @toggle="togglePanel('product')" />
         <ImageConfig
-          :config="store.imageConfig"
-          :expanded="expandedPanel === 'image'"
-          :can-screen="canScreen"
-          :is-screening="isScreening"
-          @update="handleImageConfigUpdate"
-          @toggle="togglePanel('image')"
-          @start-screen="handleStartScreen"
-          @stop-screen="handleStopScreen"
-        />
+:config="store.imageConfig" :expanded="expandedPanel === 'image'" :can-screen="canScreen"
+          :is-screening="isScreening" @update="handleImageConfigUpdate" @toggle="togglePanel('image')"
+          @start-screen="handleStartScreen" @stop-screen="handleStopScreen" />
         <ExecutionLog
-          :logs="store.logs"
-          max-height="300px"
-          :expanded="expandedPanel === 'log'"
-          @toggle="togglePanel('log')"
-          @clear="store.clearLogs"
-        />
+:logs="store.logs" max-height="300px" :expanded="expandedPanel === 'log'"
+          @toggle="togglePanel('log')" @clear="store.clearLogs" />
       </div>
     </div>
 
@@ -1172,23 +1153,20 @@ onUnmounted(() => {
     <div class="flex items-center justify-between gap-4 pt-2 border-t border-base-300">
       <LiveParams :params="store.liveParams" @update="handleLiveParamsUpdate" />
       <div class="flex gap-2">
-        <button
-          class="btn btn-outline btn-sm"
-          :disabled="!isBrowserLoggedIn"
-          @click="fetchRecentLiveRooms"
-        >
+        <button class="btn btn-outline btn-sm" :disabled="!isBrowserLoggedIn" @click="fetchRecentLiveRooms">
           <Icon icon="mdi:format-list-bulleted" />
           选择直播间
         </button>
-        <button
-          class="btn btn-secondary btn-sm"
-          :disabled="!isBrowserLoggedIn"
-          @click="handleCreateLiveRoom"
-        >
+        <button class="btn btn-primary btn-sm" :disabled="!isBrowserLoggedIn" @click="handleCreateLiveRoom">
           <Icon icon="mdi:plus-circle" />
           新建直播间
         </button>
-        <button class="btn btn-primary btn-sm" :disabled="!canStartLive" @click="handleStartLive">
+        <button
+          class="btn btn-sm text-white border-none"
+          :class="canStartLive ? 'bg-red-500 hover:bg-red-600' : 'bg-gray-300 cursor-not-allowed'"
+          :disabled="!canStartLive"
+          @click="handleStartLive"
+        >
           <Icon icon="mdi:play" />
           开始直播
         </button>
@@ -1197,11 +1175,8 @@ onUnmounted(() => {
 
     <!-- AI 设置弹窗 -->
     <AISettingsModal
-      :visible="showAISettings"
-      :settings="store.aiScriptSettings"
-      @update:visible="showAISettings = $event"
-      @save="handleAISettingsSave"
-    />
+:visible="showAISettings" :settings="store.aiScriptSettings"
+      @update:visible="showAISettings = $event" @save="handleAISettingsSave" />
 
     <!-- 选择直播间弹窗 -->
     <dialog :class="['modal', { 'modal-open': showLiveRoomSelect }]">
@@ -1212,26 +1187,19 @@ onUnmounted(() => {
             选择直播间
           </h3>
           <!-- 当前账号显示在右上角 -->
-          <span
-            v-if="store.selectedBrowser?.jdAccount?.nickname"
-            class="text-sm text-base-content/60"
-          >
+          <span v-if="store.selectedBrowser?.jdAccount?.nickname" class="text-sm text-base-content/60">
             <Icon icon="mdi:account" class="inline" />
             {{ store.selectedBrowser.jdAccount.nickname }}
           </span>
         </div>
 
-        <div
-          v-if="currentAccountSessions.length === 0"
-          class="text-center py-8 text-base-content/60"
-        >
-          <Icon icon="mdi:inbox-outline" class="text-4xl mb-2" />
+        <div v-if="currentAccountSessions.length === 0" class="text-center py-8 text-base-content/60">
           <p>该账号暂无直播间记录</p>
           <p class="text-xs mt-1">请先新建直播间</p>
         </div>
 
         <div v-else class="space-y-4 max-h-96 overflow-y-auto">
-          <!-- 待开播 -->
+          <!--    -->
           <div v-if="pendingSessions.length > 0">
             <div class="text-sm font-medium text-success mb-2 flex items-center gap-1">
               <Icon icon="mdi:clock-outline" />
@@ -1239,34 +1207,25 @@ onUnmounted(() => {
             </div>
             <div class="space-y-2">
               <div
-                v-for="session in pendingSessions"
-                :key="session.id"
-                :class="[
-                  'flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors',
-                  store.liveId === session.liveId
-                    ? 'border-success bg-success/10'
-                    : 'border-base-300 hover:bg-base-200',
-                ]"
-                @click="handleSelectLiveRoom(session)"
-              >
+v-for="session in pendingSessions" :key="session.id" :class="[
+                'flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors',
+                store.liveId === session.liveId
+                  ? 'border-success bg-success/10'
+                  : 'border-base-300 hover:bg-base-200',
+              ]" @click="handleSelectLiveRoom(session)">
                 <div
-                  :class="[
-                    'w-10 h-10 rounded flex flex-col items-center justify-center',
-                    store.liveId === session.liveId ? 'bg-success/20' : 'bg-base-200',
-                  ]"
-                >
+:class="[
+                  'w-10 h-10 rounded flex flex-col items-center justify-center',
+                  store.liveId === session.liveId ? 'bg-success/20' : 'bg-base-200',
+                ]">
                   <Icon
-                    icon="mdi:package-variant"
-                    :class="
-                      store.liveId === session.liveId ? 'text-success' : 'text-base-content/60'
-                    "
-                  />
+icon="mdi:package-variant" :class="store.liveId === session.liveId ? 'text-success' : 'text-base-content/60'
+                    " />
                   <span
-                    :class="[
-                      'text-xs font-medium',
-                      store.liveId === session.liveId ? 'text-success' : 'text-base-content/60',
-                    ]"
-                  >
+:class="[
+                    'text-xs font-medium',
+                    store.liveId === session.liveId ? 'text-success' : 'text-base-content/60',
+                  ]">
                     {{ session.products.length }}
                   </span>
                 </div>
@@ -1277,10 +1236,8 @@ onUnmounted(() => {
                   </p>
                 </div>
                 <button
-                  class="btn btn-ghost btn-xs text-error"
-                  title="删除"
-                  @click="handleDeleteSession(session, $event)"
-                >
+class="btn btn-ghost btn-xs text-error" title="删除"
+                  @click="handleDeleteSession(session, $event)">
                   <Icon icon="mdi:delete-outline" />
                 </button>
               </div>
@@ -1295,19 +1252,13 @@ onUnmounted(() => {
             </div>
             <div class="space-y-2">
               <div
-                v-for="session in historySessions"
-                :key="session.id"
-                :class="[
-                  'flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors',
-                  store.liveId === session.liveId
-                    ? 'border-base-content/30 bg-base-200'
-                    : 'border-base-300 hover:bg-base-200 opacity-60',
-                ]"
-                @click="handleSelectLiveRoom(session)"
-              >
-                <div
-                  class="w-10 h-10 bg-base-300 rounded flex flex-col items-center justify-center"
-                >
+v-for="session in historySessions" :key="session.id" :class="[
+                'flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors',
+                store.liveId === session.liveId
+                  ? 'border-base-content/30 bg-base-200'
+                  : 'border-base-300 hover:bg-base-200 opacity-60',
+              ]" @click="handleSelectLiveRoom(session)">
+                <div class="w-10 h-10 bg-base-300 rounded flex flex-col items-center justify-center">
                   <Icon icon="mdi:package-variant" class="text-base-content/50" />
                   <span class="text-xs text-base-content/50 font-medium">{{
                     session.products.length
@@ -1320,10 +1271,8 @@ onUnmounted(() => {
                   </p>
                 </div>
                 <button
-                  class="btn btn-ghost btn-xs text-error"
-                  title="删除"
-                  @click="handleDeleteSession(session, $event)"
-                >
+class="btn btn-ghost btn-xs text-error" title="删除"
+                  @click="handleDeleteSession(session, $event)">
                   <Icon icon="mdi:delete-outline" />
                 </button>
               </div>

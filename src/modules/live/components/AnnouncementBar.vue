@@ -21,13 +21,17 @@ const hasContent = computed(() => props.content.trim().length > 0)
 <template>
   <div
     v-if="hasContent"
-    class="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg"
+    class="relative flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg"
   >
-    <Icon icon="mdi:bullhorn" class="text-lg shrink-0" />
-    <span v-if="!scrolling">{{ content }}</span>
-    <div v-else class="overflow-hidden flex-1">
-      <div class="animate-marquee whitespace-nowrap">
-        {{ content }}
+    <!-- 图标固定在左侧 -->
+    <Icon icon="mdi:bullhorn" class="text-lg shrink-0 z-10" />
+    <!-- 文字居中显示 -->
+    <div class="absolute inset-0 flex items-center justify-center">
+      <span v-if="!scrolling">{{ content }}</span>
+      <div v-else class="overflow-hidden max-w-[80%]">
+        <div class="animate-marquee whitespace-nowrap">
+          {{ content }}
+        </div>
       </div>
     </div>
   </div>

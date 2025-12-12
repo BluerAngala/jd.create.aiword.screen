@@ -160,7 +160,6 @@ async function startDrag(e: MouseEvent) {
           {{ currentScript()?.content }}
         </p>
         <div v-else class="text-center text-base-content/60 py-8">
-          <Icon icon="mdi:text-box-remove-outline" class="text-4xl mb-2" />
           <p>暂无话术内容</p>
         </div>
         <span

@@ -187,7 +187,7 @@ function handleRefresh() {
       class="collapse-title py-2 px-3 pr-10 min-h-0 flex items-center gap-2 cursor-pointer"
       @click="emit('toggle')"
     >
-      <Icon icon="mdi:google-chrome" class="text-lg" />
+      <Icon icon="mdi:numeric-1-circle" class="text-xl" />
       <span class="text-sm font-medium flex-1">浏览器列表</span>
       <button
         class="btn btn-ghost btn-xs"
@@ -223,7 +223,7 @@ function handleRefresh() {
           ]"
           @click="handleSelect(browser)"
         >
-          <Icon icon="mdi:account-circle" class="text-2xl text-base-content/40" />
+          <Icon icon="mdi:account-circle" class="text-xl text-base-content/40" />
           <div class="flex-1 min-w-0">
             <div class="font-medium text-sm truncate">浏览器 {{ browser.name }}</div>
             <div

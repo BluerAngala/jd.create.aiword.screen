@@ -67,7 +67,7 @@ watch(
       class="collapse-title py-2 px-3 pr-10 min-h-0 flex items-center gap-2 cursor-pointer"
       @click="emit('toggle')"
     >
-      <Icon icon="mdi:text-box-outline" class="text-lg" />
+      <Icon icon="mdi:numeric-4-circle" class="text-xl" />
       <span class="text-sm font-medium flex-1">执行日志</span>
       <span class="text-xs text-base-content/50">{{ logs.length }} 条</span>
       <!-- 复制按钮 -->

@@ -39,24 +39,22 @@ const showNavbar = () =>
       <!-- 主题选择 -->
       <ThemeSelector />
       <!-- 公告栏 -->
-      <div class="flex-1">
+      <div class="flex-1 ">
         <AnnouncementBar :content="announcement" />
       </div>
       <!-- 自动讲解开关 -->
-      <label class="flex items-center gap-1.5 cursor-pointer">
+      <label class="btn btn-ghost btn-sm cursor-pointer">
         <input
           v-model="liveStore.autoExplainEnabled"
           type="checkbox"
           class="checkbox checkbox-success checkbox-sm"
         />
-        <span :class="['text-sm', liveStore.autoExplainEnabled ? 'text-success' : '']"
-          >自动讲解</span
-        >
+        <span :class="liveStore.autoExplainEnabled ? 'text-success' : ''">自动讲解</span>
       </label>
-      <!-- 个人中心按钮 -->
-      <button class="btn btn-ghost btn-sm" @click="openUserCenter">
-        <Icon icon="mdi:account-circle" class="text-lg" />
-        个人中心
+      <!-- 使用教程 -->
+      <button class="btn btn-sm btn-info" @click="openUserCenter">
+        <Icon icon="mdi:book-open-page-variant" class="text-lg" />
+        使用教程
       </button>
       <!-- 退出登录 -->
       <button

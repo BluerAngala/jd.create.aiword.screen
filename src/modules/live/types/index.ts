@@ -65,6 +65,7 @@ export interface ProductFile {
 export interface ImageSettings {
   width: number // 图片宽度
   height: number // 图片高度
+  position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' // 初始位置
 }
 
 // 日志条目
@@ -367,4 +368,5 @@ export interface LiveSession {
   startTime: string // 直播开始时间
   createdAt: string // 创建时间
   products: LiveProduct[] // 直播商品列表
+  scripts?: AIScript[] // AI 话术列表
 }

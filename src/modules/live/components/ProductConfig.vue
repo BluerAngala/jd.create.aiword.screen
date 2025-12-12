@@ -281,7 +281,7 @@ function moveDown(index: number) {
       class="collapse-title py-2 px-3 pr-10 min-h-0 flex items-center gap-2 cursor-pointer"
       @click="emit('toggle')"
     >
-      <Icon icon="mdi:package-variant" class="text-lg" />
+      <Icon icon="mdi:numeric-2-circle" class="text-xl" />
       <span class="text-sm font-medium flex-1">商品配置</span>
     </div>
 

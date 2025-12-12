@@ -35,6 +35,7 @@ const defaultSettings: AppSettings = {
 const defaultImageConfig: ImageSettings = {
   width: DEFAULTS.IMAGE_WIDTH,
   height: DEFAULTS.IMAGE_HEIGHT,
+  position: 'top-left',
 }
 
 // 默认直播参数（开始时间为当前时间 + 3 分钟）
@@ -324,9 +325,12 @@ export const useLiveStore = defineStore('live', () => {
     currentSession.value.products.push(...products)
   }
 
-  // 保存当前直播场次
+  // 保存当前直播场次（包含话术）
   async function saveCurrentSession() {
     if (!currentSession.value) return
+
+    // 保存当前话术到 session
+    currentSession.value.scripts = aiScripts.value
 
     // 检查是否已存在，存在则更新
     const index = liveSessions.value.findIndex((s) => s.id === currentSession.value!.id)
