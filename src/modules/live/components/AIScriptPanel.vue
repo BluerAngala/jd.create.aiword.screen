@@ -173,7 +173,7 @@ watch(
       })
     }
   },
-  { deep: true },
+  { deep: true }
 )
 
 // 投屏窗口操作同步监听器
@@ -215,8 +215,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="card bg-base-100 shadow-sm h-full overflow-hidden">
-    <div class="card-body p-4 flex flex-col h-full overflow-hidden">
+  <div class="card bg-base-100 shadow-sm h-full flex flex-col overflow-hidden">
+    <div class="p-4 pb-0 shrink-0">
       <!-- 标题栏 -->
       <div class="flex items-center justify-between mb-2">
         <div class="flex items-center gap-2">
@@ -224,7 +224,7 @@ onUnmounted(() => {
             <Icon icon="mdi:robot" class="text-lg" />
             AI 话术提词
           </h3>
-            <!-- 话术投屏按钮 -->
+          <!-- 话术投屏按钮 -->
           <button
             class="btn btn-xs"
             :class="isScriptScreening ? 'btn-error' : 'btn-success'"
@@ -233,13 +233,11 @@ onUnmounted(() => {
             <Icon :icon="isScriptScreening ? 'mdi:cast-off' : 'mdi:cast'" class="text-sm" />
             {{ isScriptScreening ? '停止' : '投屏' }}
           </button>
-         
-        
         </div>
         <div class="flex items-center gap-1">
-           <!-- 话术/商品数量 -->
-          <span v-if="scriptProductCount" class="badge badge-ghost badge-sm">
-            话术生成进度 {{ scriptProductCount }}
+          <!-- 话术/商品数量 -->
+          <span v-if="scriptProductCount" class="text-sm">
+            话术生成进度 <span class="font-bold">{{ scriptProductCount }}</span>
           </span>
           <!-- 重建所有话术 -->
           <button
@@ -257,106 +255,103 @@ onUnmounted(() => {
           </button>
         </div>
       </div>
+    </div>
 
-      <!-- 空状态 -->
-      <div
-        v-if="scripts.length === 0"
-        class="flex-1 flex flex-col items-center justify-center text-base-content/60 text-center"
-      >
-        <Icon icon="mdi:text-box-remove-outline" class="text-4xl mb-2" />
+    <!-- 空状态 -->
+    <div
+      v-if="scripts.length === 0"
+      class="flex-1 flex items-center justify-center text-base-content/60"
+    >
+      <div class="text-center">
         <p class="text-sm">暂无话术</p>
         <p class="text-xs">请先选择或新建直播间</p>
       </div>
+    </div>
 
-      <!-- 话术内容 -->
-      <div v-else class="flex-1 flex flex-col min-h-0 overflow-hidden">
-        <!-- 商品信息提示 -->
-        <div v-if="currentScript?.productId" class="flex items-center justify-between mb-1">
-          <div class="text-sm font-bold text-base-content">
-            <Icon icon="mdi:package-variant" class="inline" />
-            商品 ID: {{ currentScript.productId }}
-            <span v-if="isExplaining" class="badge badge-success badge-xs ml-1">讲解中</span>
-          </div>
-          <div class="flex items-center gap-1">
+    <!-- 话术内容 -->
+    <div v-else class="flex-1 flex flex-col min-h-0 overflow-hidden p-4 pt-2">
+      <!-- 商品信息提示 -->
+      <div v-if="currentScript?.productId" class="flex items-center justify-between mb-1">
+        <div class="text-sm font-bold text-base-content">
+          <Icon icon="mdi:package-variant" class="inline" />
+          商品 ID: {{ currentScript.productId }}
+          <span v-if="isExplaining" class="badge badge-success badge-xs ml-1">讲解中</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <button
+            class="btn btn-outline btn-xs"
+            :disabled="fontSize <= minFontSize"
+            @click="decreaseFontSize"
+          >
+            <Icon icon="mdi:format-font-size-decrease" class="text-sm" />
+            缩小
+          </button>
+          <button
+            class="btn btn-outline btn-xs"
+            :disabled="fontSize >= maxFontSize"
+            @click="increaseFontSize"
+          >
+            <Icon icon="mdi:format-font-size-increase" class="text-sm" />
+            放大
+          </button>
+          <button
+            class="btn btn-outline btn-xs"
+            :disabled="scripts.length === 0"
+            title="重新生成当前话术"
+            @click="emit('regenerateCurrent')"
+          >
+            <Icon icon="mdi:refresh" class="text-sm" />
+            重新生成
+          </button>
+        </div>
+      </div>
+
+      <div class="flex-1 min-h-0 overflow-y-auto bg-base-200/50 rounded-lg p-3 mb-3">
+        <p class="leading-relaxed whitespace-pre-wrap" :style="{ fontSize: fontSize + 'rem' }">
+          {{ currentScript?.content || '' }}
+        </p>
+      </div>
+
+      <!-- 切换按钮 - 两端对齐：左边条数，右边字数 -->
+      <div class="flex justify-between items-center">
+        <!-- 左侧：当前条数/总条数 -->
+        <span class="text-sm text-base-content/60">{{ progress }}</span>
+
+        <!-- 中间：操作按钮 -->
+        <div class="flex items-center gap-2">
+          <button class="btn btn-sm btn-outline" :disabled="!canPrev" @click="handlePrev">
+            <Icon icon="mdi:chevron-left" />
+            上一条
+          </button>
+
+          <!-- 只有开启自动讲解时才显示讲解按钮 -->
+          <template v-if="autoExplainEnabled">
+            <!-- 未开始讲解：显示开始讲解按钮 -->
             <button
-              class="btn btn-outline btn-xs"
-              :disabled="fontSize <= minFontSize"
-              @click="decreaseFontSize"
+              v-if="!isExplaining"
+              class="btn btn-sm btn-success"
+              :disabled="!canExplain || !currentScript?.productId"
+              @click="handleStartFirstExplain"
             >
-              <Icon icon="mdi:format-font-size-decrease" class="text-sm" />
-              缩小
+              <Icon icon="mdi:microphone" />
+              开始讲解
             </button>
-            <button
-              class="btn btn-outline btn-xs"
-              :disabled="fontSize >= maxFontSize"
-              @click="increaseFontSize"
-            >
-              <Icon icon="mdi:format-font-size-increase" class="text-sm" />
-              放大
+
+            <!-- 讲解中：显示停止讲解按钮 -->
+            <button v-else class="btn btn-sm btn-error" @click="handleStopExplain">
+              <Icon icon="mdi:microphone-off" />
+              停止讲解
             </button>
-            <button
-              class="btn btn-outline btn-xs"
-              :disabled="scripts.length === 0"
-              title="重新生成当前话术"
-              @click="emit('regenerateCurrent')"
-            >
-              <Icon icon="mdi:refresh" class="text-sm" />
-              重新生成
-            </button>
-          </div>
+          </template>
+
+          <button class="btn btn-sm btn-outline" :disabled="!canNext" @click="handleNext">
+            下一条
+            <Icon icon="mdi:chevron-right" />
+          </button>
         </div>
 
-        <div class="flex-1 min-h-0 overflow-y-auto bg-base-200/50 rounded-lg p-3 mb-3">
-          <p class="leading-relaxed whitespace-pre-wrap" :style="{ fontSize: fontSize + 'rem' }">
-            {{ currentScript?.content || '' }}
-          </p>
-        </div>
-
-        <!-- 切换按钮 - 两端对齐：左边条数，右边字数 -->
-        <div class="flex justify-between items-center">
-          <!-- 左侧：当前条数/总条数 -->
-          <span class="text-sm text-base-content/60">{{ progress }}</span>
-
-          <!-- 中间：操作按钮 -->
-          <div class="flex items-center gap-2">
-            <button class="btn btn-sm btn-outline" :disabled="!canPrev" @click="handlePrev">
-              <Icon icon="mdi:chevron-left" />
-              上一条
-            </button>
-
-            <!-- 只有开启自动讲解时才显示讲解按钮 -->
-            <template v-if="autoExplainEnabled">
-              <!-- 未开始讲解：显示开始讲解按钮 -->
-              <button
-                v-if="!isExplaining"
-                class="btn btn-sm btn-success"
-                :disabled="!canExplain || !currentScript?.productId"
-                @click="handleStartFirstExplain"
-              >
-                <Icon icon="mdi:microphone" />
-                开始讲解
-              </button>
-
-              <!-- 讲解中：显示停止讲解按钮 -->
-              <button
-                v-else
-                class="btn btn-sm btn-error"
-                @click="handleStopExplain"
-              >
-                <Icon icon="mdi:microphone-off" />
-                停止讲解
-              </button>
-            </template>
-
-            <button class="btn btn-sm btn-outline" :disabled="!canNext" @click="handleNext">
-              下一条
-              <Icon icon="mdi:chevron-right" />
-            </button>
-          </div>
-
-          <!-- 右侧：字数统计 -->
-          <span class="text-sm text-base-content/60">{{ wordCount }} 字</span>
-        </div>
+        <!-- 右侧：字数统计 -->
+        <span class="text-sm text-base-content/60">{{ wordCount }} 字</span>
       </div>
     </div>
   </div>

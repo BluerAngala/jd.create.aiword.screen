@@ -28,7 +28,8 @@ const openUserCenter = () => {
 }
 
 // 是否显示导航栏（投屏页面隐藏）
-const showNavbar = () => !['ScreenContent', 'ScreenCountdown', 'ScreenScript'].includes(route.name as string)
+const showNavbar = () =>
+  !['ScreenContent', 'ScreenCountdown', 'ScreenScript'].includes(route.name as string)
 </script>
 
 <template>
@@ -48,7 +49,9 @@ const showNavbar = () => !['ScreenContent', 'ScreenCountdown', 'ScreenScript'].i
           type="checkbox"
           class="checkbox checkbox-success checkbox-sm"
         />
-        <span :class="['text-sm', liveStore.autoExplainEnabled ? 'text-success' : '']">自动讲解</span>
+        <span :class="['text-sm', liveStore.autoExplainEnabled ? 'text-success' : '']"
+          >自动讲解</span
+        >
       </label>
       <!-- 个人中心按钮 -->
       <button class="btn btn-ghost btn-sm" @click="openUserCenter">
@@ -69,8 +72,6 @@ const showNavbar = () => !['ScreenContent', 'ScreenCountdown', 'ScreenScript'].i
     <main class="flex-1 overflow-hidden">
       <RouterView />
     </main>
-
-
 
     <!-- 登录弹窗（启用 auth 模块且未登录时显示） -->
     <LoginModal v-if="appConfig.features.auth && !authStore.isLoggedIn" />

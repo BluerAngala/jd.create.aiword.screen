@@ -19,7 +19,10 @@ const hasContent = computed(() => props.content.trim().length > 0)
 </script>
 
 <template>
-  <div v-if="hasContent" class="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg">
+  <div
+    v-if="hasContent"
+    class="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg"
+  >
     <Icon icon="mdi:bullhorn" class="text-lg shrink-0" />
     <span v-if="!scrolling">{{ content }}</span>
     <div v-else class="overflow-hidden flex-1">

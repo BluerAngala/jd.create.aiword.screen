@@ -41,7 +41,10 @@ function toggleScreen() {
 
 <template>
   <div class="collapse collapse-arrow bg-base-100 shadow-sm" :class="{ 'collapse-open': expanded }">
-    <div class="collapse-title py-2 px-3 pr-10 min-h-0 flex items-center gap-2 cursor-pointer" @click="emit('toggle')">
+    <div
+      class="collapse-title py-2 px-3 pr-10 min-h-0 flex items-center gap-2 cursor-pointer"
+      @click="emit('toggle')"
+    >
       <Icon icon="mdi:image" class="text-lg" />
       <span class="text-sm font-medium">图片设置</span>
       <!-- 投屏按钮（在标题栏） -->

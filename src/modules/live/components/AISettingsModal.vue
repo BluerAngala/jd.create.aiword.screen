@@ -41,7 +41,7 @@ watch(
   () => props.settings,
   (newSettings) => {
     localSettings.value = { ...newSettings }
-  },
+  }
 )
 
 // 监听弹窗打开时加载模型
@@ -51,7 +51,7 @@ watch(
     if (visible && localSettings.value.apiKey) {
       fetchModels()
     }
-  },
+  }
 )
 
 // 监听 API Key 变化，自动获取模型
@@ -63,7 +63,7 @@ watch(
     if (newKey && newKey.length > 10) {
       debounceTimer = setTimeout(() => fetchModels(), 500)
     }
-  },
+  }
 )
 
 // 获取模型列表
@@ -89,7 +89,10 @@ async function fetchModels() {
     models.value = data.data || []
 
     // 如果当前模型不在列表中，使用默认模型
-    if (!localSettings.value.model || !models.value.find((m) => m.id === localSettings.value.model)) {
+    if (
+      !localSettings.value.model ||
+      !models.value.find((m) => m.id === localSettings.value.model)
+    ) {
       localSettings.value.model = DEFAULT_AI_MODEL
     }
   } catch (error) {
@@ -133,11 +136,7 @@ function handleClose() {
           />
           <label class="label">
             <span class="label-text-alt text-base-content/50">
-              <a
-                :href="SILICON_FLOW_REGISTER_URL"
-                target="_blank"
-                class="link link-primary"
-              >
+              <a :href="SILICON_FLOW_REGISTER_URL" target="_blank" class="link link-primary">
                 点击获取 API 秘钥
               </a>
             </span>
@@ -154,7 +153,9 @@ function handleClose() {
             </span>
           </label>
           <select v-model="localSettings.model" class="select select-bordered w-full">
-            <option v-if="models.length === 0" :value="DEFAULT_AI_MODEL">{{ DEFAULT_AI_MODEL }}</option>
+            <option v-if="models.length === 0" :value="DEFAULT_AI_MODEL">
+              {{ DEFAULT_AI_MODEL }}
+            </option>
             <option v-for="model in models" :key="model.id" :value="model.id">
               {{ model.id }}
             </option>
@@ -175,7 +176,9 @@ function handleClose() {
             placeholder="请输入 AI 生成话术的提示词..."
           ></textarea>
           <label class="label">
-            <span class="label-text-alt text-base-content/50">用于指导 AI 生成直播话术的风格和内容</span>
+            <span class="label-text-alt text-base-content/50"
+              >用于指导 AI 生成直播话术的风格和内容</span
+            >
           </label>
         </div>
       </div>

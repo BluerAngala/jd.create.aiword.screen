@@ -156,10 +156,9 @@ export const DEFAULTS = {
 export function generateScriptUserPrompt(
   title: string,
   price: string = '优惠价',
-  shopName: string = '',
+  shopName: string = ''
 ): string {
-  return AI_PROMPTS.SCRIPT_USER_TEMPLATE
-    .replace('{title}', title)
+  return AI_PROMPTS.SCRIPT_USER_TEMPLATE.replace('{title}', title)
     .replace('{price}', price)
     .replace('{shopName}', shopName)
 }

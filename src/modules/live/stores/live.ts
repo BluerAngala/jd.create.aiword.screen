@@ -52,7 +52,6 @@ export const useLiveStore = defineStore('live', () => {
   const browsers = ref<BrowserInfo[]>([])
   const selectedBrowserId = ref<string | null>(null)
 
-
   // 商品
   const products = ref<ProductItem[]>([])
 
@@ -87,7 +86,7 @@ export const useLiveStore = defineStore('live', () => {
 
   // 计算属性
   const selectedBrowser = computed(() =>
-    browsers.value.find((b) => b.id === selectedBrowserId.value),
+    browsers.value.find((b) => b.id === selectedBrowserId.value)
   )
 
   const canStartLive = computed(() => isLiveRoomCreated.value && !isLiveStarted.value)
@@ -167,7 +166,6 @@ export const useLiveStore = defineStore('live', () => {
     }
   }
 
-
   // 浏览器相关方法
   function setBrowsers(list: BrowserInfo[]) {
     browsers.value = list
@@ -217,7 +215,6 @@ export const useLiveStore = defineStore('live', () => {
   function clearLogs() {
     logs.value = []
   }
-
 
   // 直播间状态方法
   function setLiveRoomCreated(created: boolean, id?: number) {
@@ -305,7 +302,7 @@ export const useLiveStore = defineStore('live', () => {
     title: string,
     browserName: string,
     accountName: string,
-    startTime: Date,
+    startTime: Date
   ): LiveSession {
     const session: LiveSession = {
       id: String(liveIdNum),

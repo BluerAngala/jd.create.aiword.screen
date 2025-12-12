@@ -42,7 +42,9 @@ const formattedTime = computed(() => {
 })
 
 // 是否已结束
-const isFinished = computed(() => remainingSeconds.value <= 0 && targetTime.value !== null && isRunning.value)
+const isFinished = computed(
+  () => remainingSeconds.value <= 0 && targetTime.value !== null && isRunning.value
+)
 
 // 是否在最后 10 秒
 const isUrgent = computed(() => remainingSeconds.value > 0 && remainingSeconds.value <= 10)
@@ -68,7 +70,7 @@ onMounted(async () => {
           timer = null
         }
       }
-    },
+    }
   )
 
   // 通知主窗口投屏已准备好，请求同步数据
@@ -139,11 +141,7 @@ async function startDrag(e: MouseEvent) {
       <div
         class="font-mono font-bold countdown-text transition-all"
         :class="[
-          isFinished
-            ? 'text-green-500'
-            : isUrgent
-              ? 'text-red-500 animate-pulse'
-              : 'text-red-500',
+          isFinished ? 'text-green-500' : isUrgent ? 'text-red-500 animate-pulse' : 'text-red-500',
         ]"
       >
         {{ formattedTime }}

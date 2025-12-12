@@ -29,7 +29,7 @@ watch(
   (newVal) => {
     localSettings.value = { ...newVal }
   },
-  { deep: true },
+  { deep: true }
 )
 
 // 关闭弹窗

@@ -45,13 +45,13 @@ watch(
   () => props.explainDuration,
   (val) => {
     localExplainDuration.value = val
-  },
+  }
 )
 watch(
   () => props.restDuration,
   (val) => {
     localRestDuration.value = val
-  },
+  }
 )
 
 // 更新讲解时长
@@ -127,7 +127,7 @@ watch(
       stopTimer()
     }
   },
-  { immediate: true },
+  { immediate: true }
 )
 
 onMounted(async () => {

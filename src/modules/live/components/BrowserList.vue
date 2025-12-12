@@ -183,16 +183,26 @@ function handleRefresh() {
 
 <template>
   <div class="collapse collapse-arrow bg-base-100 shadow-sm" :class="{ 'collapse-open': expanded }">
-    <div class="collapse-title py-2 px-3 pr-10 min-h-0 flex items-center gap-2 cursor-pointer" @click="emit('toggle')">
+    <div
+      class="collapse-title py-2 px-3 pr-10 min-h-0 flex items-center gap-2 cursor-pointer"
+      @click="emit('toggle')"
+    >
       <Icon icon="mdi:google-chrome" class="text-lg" />
       <span class="text-sm font-medium flex-1">浏览器列表</span>
-      <button class="btn btn-ghost btn-xs" :disabled="isLoading || loading" @click.stop="handleRefresh">
+      <button
+        class="btn btn-ghost btn-xs"
+        :disabled="isLoading || loading"
+        @click.stop="handleRefresh"
+      >
         <Icon icon="mdi:refresh" :class="{ 'animate-spin': isLoading || loading }" />
       </button>
     </div>
     <div v-if="expanded" class="px-3 pb-2">
       <!-- 空状态 -->
-      <div v-if="browsers.length === 0 && !isLoading && !loading" class="text-center py-2 text-base-content/60">
+      <div
+        v-if="browsers.length === 0 && !isLoading && !loading"
+        class="text-center py-2 text-base-content/60"
+      >
         <p class="text-xs">未检测到 Chrome 浏览器配置文件</p>
       </div>
       <!-- 加载状态 -->
@@ -216,7 +226,10 @@ function handleRefresh() {
           <Icon icon="mdi:account-circle" class="text-2xl text-base-content/40" />
           <div class="flex-1 min-w-0">
             <div class="font-medium text-sm truncate">浏览器 {{ browser.name }}</div>
-            <div v-if="browser.jdAccount?.isLoggedIn" class="text-xs text-success flex items-center gap-1">
+            <div
+              v-if="browser.jdAccount?.isLoggedIn"
+              class="text-xs text-success flex items-center gap-1"
+            >
               <Icon icon="mdi:check-circle" class="text-xs" />
               {{ browser.jdAccount.nickname }}
             </div>

@@ -42,7 +42,7 @@ onMounted(async () => {
     (event) => {
       scripts.value = event.payload.scripts
       currentIndex.value = event.payload.index
-    },
+    }
   )
 
   document.addEventListener('click', () => {
@@ -123,11 +123,19 @@ async function startDrag(e: MouseEvent) {
       </div>
       <!-- 右侧按钮区域（不可拖动） -->
       <div class="flex items-center gap-1">
-        <button class="btn btn-outline btn-xs" :disabled="fontSize <= minFontSize" @click="decreaseFontSize">
+        <button
+          class="btn btn-outline btn-xs"
+          :disabled="fontSize <= minFontSize"
+          @click="decreaseFontSize"
+        >
           <Icon icon="mdi:format-font-size-decrease" class="text-sm" />
           缩小
         </button>
-        <button class="btn btn-outline btn-xs" :disabled="fontSize >= maxFontSize" @click="increaseFontSize">
+        <button
+          class="btn btn-outline btn-xs"
+          :disabled="fontSize >= maxFontSize"
+          @click="increaseFontSize"
+        >
           <Icon icon="mdi:format-font-size-increase" class="text-sm" />
           放大
         </button>
@@ -155,7 +163,10 @@ async function startDrag(e: MouseEvent) {
           <Icon icon="mdi:text-box-remove-outline" class="text-4xl mb-2" />
           <p>暂无话术内容</p>
         </div>
-        <span v-if="currentScript()?.content" class="absolute bottom-2 right-2 text-xs text-base-content/40">
+        <span
+          v-if="currentScript()?.content"
+          class="absolute bottom-2 right-2 text-xs text-base-content/40"
+        >
           {{ currentScript()?.content?.length || 0 }} 字
         </span>
       </div>
@@ -181,7 +192,10 @@ async function startDrag(e: MouseEvent) {
       @click.stop
       @mousedown.stop
     >
-      <button class="w-full px-4 py-2 text-left text-sm hover:bg-base-200 flex items-center gap-2" @click.stop="closeWindow">
+      <button
+        class="w-full px-4 py-2 text-left text-sm hover:bg-base-200 flex items-center gap-2"
+        @click.stop="closeWindow"
+      >
         <span class="text-error">✕</span>
         关闭窗口
       </button>

@@ -50,8 +50,8 @@ import {
 const store = useLiveStore()
 const toast = useToast()
 
-// 手风琴展开状态
-const expandedPanel = ref<string | null>(null)
+// 手风琴展开状态（默认展开浏览器列表）
+const expandedPanel = ref<string | null>('browser')
 
 function togglePanel(panel: string) {
   expandedPanel.value = expandedPanel.value === panel ? null : panel
@@ -69,13 +69,11 @@ function handleAISettingsSave(settings: AIScriptSettings) {
 const browserLoading = ref(false)
 
 // 是否已选择并登录浏览器
-const isBrowserLoggedIn = computed(
-  () => store.selectedBrowser?.jdAccount?.isLoggedIn === true,
-)
+const isBrowserLoggedIn = computed(() => store.selectedBrowser?.jdAccount?.isLoggedIn === true)
 
 // 开始直播按钮状态
 const canStartLive = computed(
-  () => isBrowserLoggedIn.value && store.isLiveRoomCreated && !store.isLiveStarted,
+  () => isBrowserLoggedIn.value && store.isLiveRoomCreated && !store.isLiveStarted
 )
 
 // 是否可以讲解（已登录 + 已创建直播间）
@@ -165,8 +163,6 @@ function handleBrowsersUpdate(browsers: BrowserInfo[]) {
   store.setBrowsers(browsers)
 }
 
-
-
 // 处理图片配置更新
 function handleImageConfigUpdate(config: ImageSettings) {
   store.setImageConfig(config)
@@ -253,7 +249,10 @@ async function addSkusToBag(liveId: number, cookies: Cookie[]): Promise<number> 
     const useCount = file.useCount === 999 ? file.productIds.length : file.useCount
     const fileSkuIds = file.productIds.slice(0, useCount)
 
-    store.addLog('info', `【文件${fileIndex + 1}】开始处理: ${file.name}，共 ${fileSkuIds.length} 个商品`)
+    store.addLog(
+      'info',
+      `【文件${fileIndex + 1}】开始处理: ${file.name}，共 ${fileSkuIds.length} 个商品`
+    )
 
     let fileSuccess = 0
     let fileInvalid = 0
@@ -278,7 +277,10 @@ async function addSkusToBag(liveId: number, cookies: Cookie[]): Promise<number> 
         const invalidCount = batchIds.length - skuInfos.length
         fileInvalid += invalidCount
         if (invalidCount > 0) {
-          store.addLog('warn', `【文件${fileIndex + 1}】获取详情: ${skuInfos.length} 有效，${invalidCount} 无效`)
+          store.addLog(
+            'warn',
+            `【文件${fileIndex + 1}】获取详情: ${skuInfos.length} 有效，${invalidCount} 无效`
+          )
         }
       } catch (error) {
         store.addLog('error', `【文件${fileIndex + 1}】获取商品详情失败: ${error}`)
@@ -304,13 +306,15 @@ async function addSkusToBag(liveId: number, cookies: Cookie[]): Promise<number> 
             totalSuccess += result.success_count
 
             // 保存成功添加的商品到当前直播场次
-            const addedProducts: LiveProduct[] = batch.slice(0, result.success_count).map((sku) => ({
-              sku: sku.sku,
-              title: sku.title ?? '',
-              img: sku.img ?? '',
-              price: sku.price,
-              shopName: sku.shopName,
-            }))
+            const addedProducts: LiveProduct[] = batch
+              .slice(0, result.success_count)
+              .map((sku) => ({
+                sku: sku.sku,
+                title: sku.title ?? '',
+                img: sku.img ?? '',
+                price: sku.price,
+                shopName: sku.shopName,
+              }))
             store.addProductsToSession(addedProducts)
           }
         } catch (error) {
@@ -322,7 +326,7 @@ async function addSkusToBag(liveId: number, cookies: Cookie[]): Promise<number> 
     // 输出当前文件的统计
     store.addLog(
       'success',
-      `【文件${fileIndex + 1}】${file.name} 完成: 添加 ${fileSuccess} 个，无效 ${fileInvalid} 个，累计 ${totalSuccess}/${targetCount}`,
+      `【文件${fileIndex + 1}】${file.name} 完成: 添加 ${fileSuccess} 个，无效 ${fileInvalid} 个，累计 ${totalSuccess}/${targetCount}`
     )
   }
 
@@ -369,7 +373,10 @@ async function handleCreateLiveRoom() {
   // 随机获取一条标题
   const randomIndex = Math.floor(Math.random() * titleSettings.titles.length)
   const randomTitle = titleSettings.titles[randomIndex] ?? '直播间'
-  store.addLog('success', `【检查2】✓ 已配置 ${titleSettings.titles.length} 条标题，随机选中: "${randomTitle}"`)
+  store.addLog(
+    'success',
+    `【检查2】✓ 已配置 ${titleSettings.titles.length} 条标题，随机选中: "${randomTitle}"`
+  )
 
   // 3. 检查商品文件配置
   store.addLog('info', '【检查3】检查商品文件配置...')
@@ -390,7 +397,7 @@ async function handleCreateLiveRoom() {
   }
   store.addLog(
     'success',
-    `【检查3】✓ 已配置 ${productFiles.length} 个商品文件，共 ${totalProducts} 条有效商品`,
+    `【检查3】✓ 已配置 ${productFiles.length} 个商品文件，共 ${totalProducts} 条有效商品`
   )
 
   // 3.5 检查直播时间（必须在未来 3 分钟到 30 天内）
@@ -498,7 +505,7 @@ async function handleCreateLiveRoom() {
       randomTitle,
       selectedBrowser.name,
       selectedBrowser.jdAccount?.nickname ?? '',
-      store.liveParams.startTime,
+      store.liveParams.startTime
     )
 
     // 7. 添加商品到购物袋
@@ -530,26 +537,44 @@ async function handleCreateLiveRoom() {
 }
 
 // 生成 AI 话术（基于商品数据）
-function generateAIScripts() {
+// 生成 AI 话术（基于商品数据，先用模板快速显示，后台异步调用 AI 更新）
+async function generateAIScripts() {
   const products = store.getCurrentProducts()
   // 取前 10 条商品生成话术
   const topProducts = products.slice(0, 10)
 
   if (topProducts.length === 0) {
-    store.setAIScripts([
-      { id: '1', content: '欢迎来到直播间！今天给大家带来超值好物推荐~' },
-    ])
+    store.setAIScripts([{ id: '1', content: AI_PROMPTS.DEFAULT_SCRIPT }])
     return
   }
 
+  // 先用模板快速生成，让用户立即看到内容
   const scripts = topProducts.map((product, index) => ({
     id: String(index + 1),
     productId: product.sku,
     content: generateProductScript(product, index),
   }))
-
   store.setAIScripts(scripts)
-  store.addLog('success', `已生成 ${scripts.length} 条商品话术`)
+  store.addLog('info', `已生成 ${scripts.length} 条模板话术，正在调用 AI 优化...`)
+
+  // 如果配置了 API Key，异步调用 AI 更新话术
+  if (store.aiScriptSettings.apiKey) {
+    for (let i = 0; i < topProducts.length; i++) {
+      const product = topProducts[i]!
+      const aiContent = await generateProductScriptByAI(product, i)
+      // 更新单条话术
+      store.updateAIScript(i, {
+        id: String(i + 1),
+        productId: product.sku,
+        content: aiContent,
+      })
+      // 添加延迟避免 API 限流
+      if (i < topProducts.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 300))
+      }
+    }
+    store.addLog('success', `已完成前 ${topProducts.length} 条 AI 话术生成`)
+  }
 }
 
 // 格式化话术内容：第一行商品标题，空一行后话术内容，每4个句号换行
@@ -604,9 +629,8 @@ async function generateProductScriptByAI(product: LiveProduct, index: number): P
   const userPrompt = generateScriptUserPrompt(
     product.title,
     product.price || '优惠价',
-    product.shopName || '',
+    product.shopName || ''
   )
-
 
   try {
     const response = await fetch(API_ENDPOINTS.CHAT_COMPLETIONS, {
@@ -716,7 +740,7 @@ async function handleRegenerateAll() {
   store.addLog('success', `已完成全部 ${products.length} 条话术重新生成`)
 }
 
-// 后台批量生成所有商品的 AI 话术
+// 后台批量生成所有商品的 AI 话术（分批次，避免 API 限流）
 let isGeneratingScripts = false
 async function generateAllAIScriptsInBackground() {
   if (isGeneratingScripts) return
@@ -730,26 +754,46 @@ async function generateAllAIScriptsInBackground() {
 
   store.addLog('info', `后台开始生成剩余 ${products.length - 10} 条商品话术...`)
 
-  // 从第 11 条开始，每批生成 10 条
-  const batchSize = 10
-  let currentIndex = 10
+  const hasApiKey = !!store.aiScriptSettings.apiKey
+  const batchSize = 5 // 每批生成 5 条
+  const batchDelay = 2000 // 每批之间延迟 2 秒
+  const itemDelay = hasApiKey ? 500 : 30 // 每条之间延迟
 
-  while (currentIndex < products.length) {
-    const batch = products.slice(currentIndex, currentIndex + batchSize)
-    const newScripts = batch.map((product, i) => ({
-      id: String(currentIndex + i + 1),
-      productId: product.sku,
-      content: generateProductScript(product, currentIndex + i),
-    }))
+  // 从第 11 条开始分批生成
+  for (let batchStart = 10; batchStart < products.length; batchStart += batchSize) {
+    const batchEnd = Math.min(batchStart + batchSize, products.length)
 
-    // 追加到现有话术列表
-    const existingScripts = store.aiScripts
-    store.setAIScripts([...existingScripts, ...newScripts])
+    // 生成当前批次
+    for (let i = batchStart; i < batchEnd; i++) {
+      const product = products[i]!
 
-    currentIndex += batchSize
+      // 如果有 API Key，调用 AI 生成；否则用模板
+      const content = hasApiKey
+        ? await generateProductScriptByAI(product, i)
+        : generateProductScript(product, i)
 
-    // 短暂延迟，避免阻塞 UI
-    await new Promise((resolve) => setTimeout(resolve, 50))
+      const newScript = {
+        id: String(i + 1),
+        productId: product.sku,
+        content,
+      }
+
+      // 追加到现有话术列表
+      const existingScripts = [...store.aiScripts]
+      existingScripts.push(newScript)
+      store.setAIScripts(existingScripts, false) // 不重置索引
+
+      // 每条之间延迟
+      if (i < batchEnd - 1) {
+        await new Promise((resolve) => setTimeout(resolve, itemDelay))
+      }
+    }
+
+    // 每批之间延迟（避免 API 限流）
+    if (batchEnd < products.length && hasApiKey) {
+      store.addLog('info', `已生成 ${batchEnd} 条，休息 2 秒后继续...`)
+      await new Promise((resolve) => setTimeout(resolve, batchDelay))
+    }
   }
 
   store.addLog('success', `已完成全部 ${products.length} 条商品话术生成`)
@@ -1032,7 +1076,7 @@ watch(
         console.error('更新投屏图片失败:', error)
       }
     }
-  },
+  }
 )
 
 // 组件挂载时初始化
@@ -1070,7 +1114,7 @@ onUnmounted(() => {
           @update:explain-duration="explainDuration = $event"
           @update:rest-duration="restDuration = $event"
         />
-        <div class="flex-1 min-h-0">
+        <div class="flex-1 min-h-0 h-full">
           <AIScriptPanel
             :scripts="store.aiScripts"
             :current-index="store.currentScriptIndex"
@@ -1168,13 +1212,19 @@ onUnmounted(() => {
             选择直播间
           </h3>
           <!-- 当前账号显示在右上角 -->
-          <span v-if="store.selectedBrowser?.jdAccount?.nickname" class="text-sm text-base-content/60">
+          <span
+            v-if="store.selectedBrowser?.jdAccount?.nickname"
+            class="text-sm text-base-content/60"
+          >
             <Icon icon="mdi:account" class="inline" />
             {{ store.selectedBrowser.jdAccount.nickname }}
           </span>
         </div>
 
-        <div v-if="currentAccountSessions.length === 0" class="text-center py-8 text-base-content/60">
+        <div
+          v-if="currentAccountSessions.length === 0"
+          class="text-center py-8 text-base-content/60"
+        >
           <Icon icon="mdi:inbox-outline" class="text-4xl mb-2" />
           <p>该账号暂无直播间记录</p>
           <p class="text-xs mt-1">请先新建直播间</p>
@@ -1207,7 +1257,9 @@ onUnmounted(() => {
                 >
                   <Icon
                     icon="mdi:package-variant"
-                    :class="store.liveId === session.liveId ? 'text-success' : 'text-base-content/60'"
+                    :class="
+                      store.liveId === session.liveId ? 'text-success' : 'text-base-content/60'
+                    "
                   />
                   <span
                     :class="[
@@ -1253,9 +1305,13 @@ onUnmounted(() => {
                 ]"
                 @click="handleSelectLiveRoom(session)"
               >
-                <div class="w-10 h-10 bg-base-300 rounded flex flex-col items-center justify-center">
+                <div
+                  class="w-10 h-10 bg-base-300 rounded flex flex-col items-center justify-center"
+                >
                   <Icon icon="mdi:package-variant" class="text-base-content/50" />
-                  <span class="text-xs text-base-content/50 font-medium">{{ session.products.length }}</span>
+                  <span class="text-xs text-base-content/50 font-medium">{{
+                    session.products.length
+                  }}</span>
                 </div>
                 <div class="flex-1 min-w-0">
                   <p class="font-medium truncate text-sm">{{ session.title || '未命名' }}</p>
@@ -1276,9 +1332,7 @@ onUnmounted(() => {
         </div>
 
         <div class="modal-action">
-          <button class="btn btn-ghost" @click="showLiveRoomSelect = false">
-            取消
-          </button>
+          <button class="btn btn-ghost" @click="showLiveRoomSelect = false">取消</button>
         </div>
       </div>
       <form method="dialog" class="modal-backdrop">

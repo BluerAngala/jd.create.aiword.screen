@@ -32,7 +32,7 @@ export async function getRecentLiveRooms(cookies: Cookie[]): Promise<RecentLiveR
  */
 export async function createLiveRoom(
   cookies: Cookie[],
-  request: CreateLiveRequest,
+  request: CreateLiveRequest
 ): Promise<number> {
   return invoke<number>('create_live_room', { cookies, request })
 }
@@ -40,11 +40,7 @@ export async function createLiveRoom(
 /**
  * 上传商品到直播间
  */
-export async function uploadSku(
-  cookies: Cookie[],
-  liveId: string,
-  skuId: string,
-): Promise<void> {
+export async function uploadSku(cookies: Cookie[], liveId: string, skuId: string): Promise<void> {
   return invoke<void>('upload_sku', { cookies, liveId, skuId })
 }
 
@@ -54,7 +50,7 @@ export async function uploadSku(
 export async function addSkuToBag(
   cookies: Cookie[],
   liveId: string,
-  skuIds: string[],
+  skuIds: string[]
 ): Promise<void> {
   return invoke<void>('add_sku_to_bag', { cookies, liveId, skuIds })
 }
@@ -64,7 +60,7 @@ export async function addSkuToBag(
  */
 export async function getLiveGeneralData(
   cookies: Cookie[],
-  liveId: string,
+  liveId: string
 ): Promise<LiveGeneralData> {
   return invoke<LiveGeneralData>('get_live_general_data', { cookies, liveId })
 }
@@ -82,7 +78,7 @@ export async function getH5Url(cookies: Cookie[], liveId: string): Promise<strin
 export async function startExplain(
   cookies: Cookie[],
   liveId: string,
-  skuId: string,
+  skuId: string
 ): Promise<void> {
   return invoke<void>('start_explain', { cookies, liveId, skuId })
 }
@@ -90,11 +86,7 @@ export async function startExplain(
 /**
  * 结束讲解商品
  */
-export async function endExplain(
-  cookies: Cookie[],
-  liveId: string,
-  skuId: string,
-): Promise<void> {
+export async function endExplain(cookies: Cookie[], liveId: string, skuId: string): Promise<void> {
   return invoke<void>('end_explain', { cookies, liveId, skuId })
 }
 
@@ -104,7 +96,7 @@ export async function endExplain(
 export async function getSkuInfoByFile(
   cookies: Cookie[],
   liveId: number,
-  skuIds: string[],
+  skuIds: string[]
 ): Promise<SkuInfo[]> {
   return invoke<SkuInfo[]>('get_sku_info_by_file', { cookies, liveId, skuIds })
 }
@@ -115,7 +107,7 @@ export async function getSkuInfoByFile(
 export async function addSkuToBagBatch(
   cookies: Cookie[],
   liveId: number,
-  skuList: SkuInfo[],
+  skuList: SkuInfo[]
 ): Promise<AddSkuResult> {
   return invoke<AddSkuResult>('add_sku_to_bag_batch', { cookies, liveId, skuList })
 }

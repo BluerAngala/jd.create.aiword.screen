@@ -75,7 +75,6 @@ export interface LogEntry {
   message: string
 }
 
-
 // 直播参数
 export interface LiveParameters {
   totalProducts: number // 当场直播商品总数量
@@ -122,7 +121,6 @@ export interface LiveState {
   currentScriptIndex: number
 }
 
-
 // ============ 京东直播 API 类型 ============
 
 // 京东登录验证结果
@@ -144,22 +142,22 @@ export interface RecentLiveRoom {
 
 // 创建直播间请求
 export interface CreateLiveRequest {
-  title: string                    // 直播间标题
-  indexImage: string               // 封面图（4:3）
-  resizeIndexImage: string         // 封面图（2:1）
-  squareIndexImage: string         // 封面图（1:1）
-  portraitIndexImage: string       // 封面图（3:4）
-  type: number                     // 直播类型，固定 69
-  publishTime: string              // 发布时间，格式：YYYY-MM-DD HH:mm:ss
-  screen: number                   // 横竖屏，0=竖屏
-  test: number                     // 是否测试，0=否
-  locationDetail: string | null    // 位置详情
-  canExplain: number               // 是否可讲解，1=是
-  preVideoType: number             // 预告视频类型，0=无
-  desc: string                     // 描述
-  welcome: string                  // 欢迎语
-  channelNum: string               // 频道号
-  pcVersion: number                // PC 版本，固定 1
+  title: string // 直播间标题
+  indexImage: string // 封面图（4:3）
+  resizeIndexImage: string // 封面图（2:1）
+  squareIndexImage: string // 封面图（1:1）
+  portraitIndexImage: string // 封面图（3:4）
+  type: number // 直播类型，固定 69
+  publishTime: string // 发布时间，格式：YYYY-MM-DD HH:mm:ss
+  screen: number // 横竖屏，0=竖屏
+  test: number // 是否测试，0=否
+  locationDetail: string | null // 位置详情
+  canExplain: number // 是否可讲解，1=是
+  preVideoType: number // 预告视频类型，0=无
+  desc: string // 描述
+  welcome: string // 欢迎语
+  channelNum: string // 频道号
+  pcVersion: number // PC 版本，固定 1
 }
 
 // 创建直播间响应
@@ -194,7 +192,6 @@ export interface Cookie {
   http_only: boolean
   secure: boolean
 }
-
 
 // ============ 商品详情相关（购物袋功能）============
 
@@ -353,21 +350,21 @@ export interface AddSkuResult {
 
 // 直播商品（简化版，用于 AI 话术、投屏、讲解控制）
 export interface LiveProduct {
-  sku: string           // 商品 ID
-  title: string         // 商品名称
-  img: string           // 商品图片
-  price?: string        // 价格
-  shopName?: string     // 店铺名称
+  sku: string // 商品 ID
+  title: string // 商品名称
+  img: string // 商品图片
+  price?: string // 价格
+  shopName?: string // 店铺名称
 }
 
 // 直播场次数据
 export interface LiveSession {
-  id: string            // 唯一标识（使用 liveId）
-  liveId: number        // 直播间 ID
-  title: string         // 直播间标题
-  browserName: string   // 使用的浏览器名称
-  accountName: string   // 京东账号昵称
-  startTime: string     // 直播开始时间
-  createdAt: string     // 创建时间
+  id: string // 唯一标识（使用 liveId）
+  liveId: number // 直播间 ID
+  title: string // 直播间标题
+  browserName: string // 使用的浏览器名称
+  accountName: string // 京东账号昵称
+  startTime: string // 直播开始时间
+  createdAt: string // 创建时间
   products: LiveProduct[] // 直播商品列表
 }

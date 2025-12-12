@@ -33,8 +33,6 @@ const fileInput = ref<HTMLInputElement | null>(null)
 // 商品文件列表（从 store 获取，已持久化）
 const productFiles = computed(() => liveStore.productFiles)
 
-
-
 function triggerFileSelect() {
   fileInput.value?.click()
 }
@@ -78,7 +76,10 @@ async function downloadTemplate() {
     // 用系统默认程序打开文件
     await openPath(savePath)
   } catch (error) {
-    liveStore.addLog('error', `下载模板失败: ${error instanceof Error ? error.message : '未知错误'}`)
+    liveStore.addLog(
+      'error',
+      `下载模板失败: ${error instanceof Error ? error.message : '未知错误'}`
+    )
   }
 }
 
@@ -86,8 +87,14 @@ async function downloadTemplate() {
  * 解析 xlsx 文件
  */
 async function parseXlsxFile(
-  file: File,
-): Promise<{ success: boolean; productIds: string[]; totalCount: number; uniqueCount: number; error?: string }> {
+  file: File
+): Promise<{
+  success: boolean
+  productIds: string[]
+  totalCount: number
+  uniqueCount: number
+  error?: string
+}> {
   return new Promise((resolve) => {
     const reader = new FileReader()
 
@@ -98,12 +105,24 @@ async function parseXlsxFile(
         const workbook = XLSX.read(data, { type: 'array' })
         const firstSheetName = workbook.SheetNames[0]
         if (!firstSheetName) {
-          resolve({ success: false, productIds: [], totalCount: 0, uniqueCount: 0, error: '文件为空' })
+          resolve({
+            success: false,
+            productIds: [],
+            totalCount: 0,
+            uniqueCount: 0,
+            error: '文件为空',
+          })
           return
         }
         const worksheet = workbook.Sheets[firstSheetName]
         if (!worksheet) {
-          resolve({ success: false, productIds: [], totalCount: 0, uniqueCount: 0, error: '工作表为空' })
+          resolve({
+            success: false,
+            productIds: [],
+            totalCount: 0,
+            uniqueCount: 0,
+            error: '工作表为空',
+          })
           return
         }
         const jsonData = XLSX.utils.sheet_to_json<unknown[]>(worksheet, { header: 1 })
@@ -113,7 +132,13 @@ async function parseXlsxFile(
         console.log('[xlsx解析] JSON行数:', jsonData.length)
 
         if (jsonData.length === 0) {
-          resolve({ success: false, productIds: [], totalCount: 0, uniqueCount: 0, error: '文件为空' })
+          resolve({
+            success: false,
+            productIds: [],
+            totalCount: 0,
+            uniqueCount: 0,
+            error: '文件为空',
+          })
           return
         }
 
@@ -162,7 +187,13 @@ async function parseXlsxFile(
     }
 
     reader.onerror = () => {
-      resolve({ success: false, productIds: [], totalCount: 0, uniqueCount: 0, error: '文件读取失败' })
+      resolve({
+        success: false,
+        productIds: [],
+        totalCount: 0,
+        uniqueCount: 0,
+        error: '文件读取失败',
+      })
     }
 
     reader.readAsArrayBuffer(file)
@@ -206,7 +237,10 @@ async function handleFileChange(event: Event) {
       useCount: 999, // 默认每场直播使用 999 条
     }
     liveStore.addProductFile(productFile)
-    liveStore.addLog('success', `${file.name}: 共 ${result.totalCount} 条，去重后 ${result.uniqueCount} 条`)
+    liveStore.addLog(
+      'success',
+      `${file.name}: 共 ${result.totalCount} 条，去重后 ${result.uniqueCount} 条`
+    )
   }
 
   // 清空 input
@@ -243,7 +277,10 @@ function moveDown(index: number) {
 
 <template>
   <div class="collapse collapse-arrow bg-base-100 shadow-sm" :class="{ 'collapse-open': expanded }">
-    <div class="collapse-title py-2 px-3 pr-10 min-h-0 flex items-center gap-2 cursor-pointer" @click="emit('toggle')">
+    <div
+      class="collapse-title py-2 px-3 pr-10 min-h-0 flex items-center gap-2 cursor-pointer"
+      @click="emit('toggle')"
+    >
       <Icon icon="mdi:package-variant" class="text-lg" />
       <span class="text-sm font-medium flex-1">商品配置</span>
     </div>
@@ -280,7 +317,11 @@ function moveDown(index: number) {
 
       <!-- 文件列表 -->
       <div v-else class="space-y-2 max-h-64 overflow-y-auto">
-        <div v-for="(file, index) in productFiles" :key="file.id" class="p-2 bg-base-200 rounded transition-all">
+        <div
+          v-for="(file, index) in productFiles"
+          :key="file.id"
+          class="p-2 bg-base-200 rounded transition-all"
+        >
           <!-- 第一行：文件信息 -->
           <div class="flex items-center gap-2">
             <!-- 序号 -->
@@ -308,7 +349,6 @@ function moveDown(index: number) {
             >
               <Icon icon="mdi:arrow-down" /> 下移
             </button>
-
           </div>
 
           <!-- 第二行：数量设置 -->
@@ -330,7 +370,13 @@ function moveDown(index: number) {
                   :max="file.uniqueCount"
                   class="input input-bordered input-xs w-16 text-center"
                   @click.stop
-                  @change="(e) => liveStore.updateProductFileUseCount(file.id, Number((e.target as HTMLInputElement).value))"
+                  @change="
+                    (e) =>
+                      liveStore.updateProductFileUseCount(
+                        file.id,
+                        Number((e.target as HTMLInputElement).value)
+                      )
+                  "
                 />
                 <span class="text-base-content/70">条</span>
               </div>
@@ -343,7 +389,6 @@ function moveDown(index: number) {
           </div>
         </div>
       </div>
-
     </div>
   </div>
 </template>

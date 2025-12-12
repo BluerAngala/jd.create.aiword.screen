@@ -6,12 +6,7 @@
 import { ref, watch, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useLiveStore } from '../stores/live'
-import {
-  STORAGE_KEYS,
-  API_ENDPOINTS,
-  AI_PROMPTS,
-  AI_REQUEST_DEFAULTS,
-} from '@/config/constants'
+import { STORAGE_KEYS, API_ENDPOINTS, AI_PROMPTS, AI_REQUEST_DEFAULTS } from '@/config/constants'
 
 interface Props {
   visible: boolean
@@ -62,7 +57,7 @@ function saveSettings() {
       titleCount: titleCount.value,
       titles: titles.value,
       prompt: prompt.value,
-    }),
+    })
   )
 }
 
@@ -73,7 +68,7 @@ watch(
     if (visible) {
       loadSettings()
     }
-  },
+  }
 )
 
 // AI 生成标题
@@ -220,7 +215,11 @@ onMounted(() => {
           <Icon icon="mdi:content-copy" />
           复制全部
         </button>
-        <button v-if="titles.length > 0" class="btn btn-ghost btn-sm text-error" @click="clearTitles">
+        <button
+          v-if="titles.length > 0"
+          class="btn btn-ghost btn-sm text-error"
+          @click="clearTitles"
+        >
           <Icon icon="mdi:delete" />
           清空
         </button>
@@ -268,7 +267,9 @@ onMounted(() => {
             <span class="text-base-content/50 text-sm w-6">{{ index + 1 }}.</span>
             <span class="flex-1" :class="{ 'text-error': title.length > 15 }">
               {{ title }}
-              <span v-if="title.length > 15" class="text-xs ml-1">({{ title.length }}字，超出限制)</span>
+              <span v-if="title.length > 15" class="text-xs ml-1"
+                >({{ title.length }}字，超出限制)</span
+              >
             </span>
             <button
               class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 transition-opacity"
