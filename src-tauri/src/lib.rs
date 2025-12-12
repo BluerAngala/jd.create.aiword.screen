@@ -56,6 +56,8 @@ pub fn run() {
             jd::start_explain,
             jd::end_explain,
             jd::get_cover_images,
+            jd::get_sku_info_by_file,
+            jd::add_sku_to_bag_batch,
             // screen 模块
             screen::create_screen_window,
             screen::close_screen_window,

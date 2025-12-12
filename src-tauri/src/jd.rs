@@ -710,3 +710,379 @@ pub async fn get_cover_images(cookies: Vec<Cookie>) -> Result<Vec<CoverImage>, S
 
     Err(data.error_msg.unwrap_or_else(|| "获取封面图片失败".to_string()))
 }
+
+// ============ 商品详情相关（购物袋功能）============
+
+/// 商品详情（从京东接口返回的完整数据）
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SkuInfo {
+    pub sku: String,
+    pub title: Option<String>,
+    pub img: Option<String>,
+    pub description: Option<String>,
+    pub three_category: Option<String>,
+    pub two_category: Option<String>,
+    pub one_category: Option<String>,
+    pub brand_id: Option<String>,
+    pub shop_id: Option<String>,
+    pub vendor_id: Option<String>,
+    pub price: Option<String>,
+    pub cps_price: Option<String>,
+    pub cps_rate: Option<String>,
+    pub cps_share_button: Option<bool>,
+    pub brokerage_ratio: Option<String>,
+    pub market_price: Option<String>,
+    pub spu: Option<String>,
+    pub shop_name: Option<String>,
+    pub sku_status: Option<String>,
+    pub is_can_use_dq: Option<String>,
+    pub is_can_use_jq: Option<String>,
+    pub wxsp: Option<String>,
+    pub col_type: Option<String>,
+    pub dx_type: Option<String>,
+    pub msbybt: Option<i32>,
+    pub price_star: Option<String>,
+    pub ttdj: Option<String>,
+    pub view_status: Option<String>,
+    pub idx_goods: Option<String>,
+    pub index_sku_max_price: Option<String>,
+    pub virtual_bundles: Option<bool>,
+    pub cs_time: Option<String>,
+    pub ce_time: Option<String>,
+    pub coupon_limit_status: Option<String>,
+    pub customize_type: Option<String>,
+    pub coupon_switch: Option<String>,
+    pub coupon_limit_count: Option<String>,
+    pub address: Option<String>,
+    pub store_name: Option<String>,
+    pub store_id: Option<String>,
+    pub stock_state: Option<i32>,
+    pub id: Option<String>,
+    pub live_id: Option<String>,
+    #[serde(rename = "type")]
+    pub sku_type: Option<i32>,
+    pub sec_kill_flag: Option<i32>,
+    pub tag: Option<i32>,
+    pub sort: Option<String>,
+    pub top: Option<i32>,
+    pub explain_begin: Option<i32>,
+    pub promotion_id: Option<String>,
+    pub promotion_price: Option<String>,
+    pub activity_id: Option<String>,
+    pub source: Option<i32>,
+    pub start_time: Option<String>,
+    pub end_time: Option<String>,
+    pub status: Option<i32>,
+    pub live_only: Option<String>,
+    pub purchased: Option<String>,
+    pub denomination: Option<String>,
+    pub quota: Option<String>,
+    pub limit: Option<String>,
+    pub promotion_extra: Option<String>,
+    pub finished: Option<String>,
+    pub benefit: Option<String>,
+    pub url: Option<String>,
+    pub explain_status: Option<String>,
+    pub copy_url: Option<String>,
+    pub wj_shop_id: Option<String>,
+    pub saler_id: Option<String>,
+    pub coupon_key: Option<String>,
+    pub coupon_type: Option<String>,
+    pub coupon_info: Option<String>,
+    pub coupon_op_time: Option<String>,
+    pub sku_make_up: Option<String>,
+    pub sku_skin_test: Option<String>,
+    pub special_key_flag: Option<String>,
+    pub create_time: Option<String>,
+    pub explain_end: Option<i32>,
+    pub ext: Option<String>,
+    pub flash_live_announcement: Option<bool>,
+    pub sku_reserve_num: Option<String>,
+    pub sku_reserve_num_wx: Option<String>,
+    pub sku_reserve_num_app: Option<String>,
+    pub error_tips: Option<String>,
+    pub batch_id: Option<i32>,
+    pub flash_play_flag: Option<String>,
+    pub promotion_start: Option<String>,
+    pub promotion_end: Option<String>,
+    pub flash_play_status: Option<String>,
+    pub op_id: Option<String>,
+    pub cr_id: Option<String>,
+    pub bu_id: Option<String>,
+    pub shop_mode: Option<String>,
+    pub bpin: Option<String>,
+    pub promote_status: Option<String>,
+    pub group_ids: Option<String>,
+    pub group_names: Option<String>,
+    pub group_id: Option<String>,
+    pub group_name: Option<String>,
+    pub promotion_status: Option<String>,
+    pub promotion_stock: Option<String>,
+    pub increment_price: Option<String>,
+    pub bid_count: Option<String>,
+    pub sale_total: Option<String>,
+    pub rest_channel_stock: Option<String>,
+    pub sent_channel_stock: Option<String>,
+    pub high_quality_start_time: Option<String>,
+    pub high_quality_end_time: Option<String>,
+    pub apply_price: Option<String>,
+    pub high_sku_act_status: Option<String>,
+    pub add_source: Option<String>,
+    pub high_sku_table_primary_key: Option<String>,
+    pub apply_id: Option<String>,
+    pub choose_time: Option<String>,
+    pub price_high_flag: Option<String>,
+    pub tip_reason: Option<String>,
+    pub promo_batch_id: Option<String>,
+    pub promo_switch_type: Option<String>,
+    pub promo_stock_type: Option<String>,
+    pub prepare_stock_num: Option<String>,
+    pub ad_coupon_guide_word: Option<String>,
+    pub sync_sku_count: Option<String>,
+    pub stock_act_id: Option<String>,
+    pub wan8_start_time: Option<String>,
+    pub wan8_end_time: Option<String>,
+    pub business_opportunity_flag: Option<String>,
+    pub author_id: Option<String>,
+    pub forbidden_reason: Option<String>,
+    pub under_auction: Option<bool>,
+    pub can_upload_sku_video: Option<bool>,
+    pub video_play_url: Option<String>,
+    pub video_source: Option<String>,
+    pub can_change_limit_price: Option<bool>,
+    pub offline_order_nums: Option<String>,
+    pub upload_video_url: Option<String>,
+    pub upload_video_failed_reason: Option<String>,
+    pub is_flash_sale: Option<String>,
+    pub fs_invalid_desc: Option<String>,
+    pub fs_valid_threshold: Option<String>,
+    pub fs_arrival_price: Option<String>,
+}
+
+/// 获取商品详情响应
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetSkuInfoResponse {
+    pub success: bool,
+    pub success_msg: Option<String>,
+    pub error_msg: Option<String>,
+    pub code: i32,
+    pub subcode: Option<i32>,
+    pub data: Option<Vec<SkuInfo>>,
+}
+
+/// 添加商品到购物袋请求（新版，使用完整商品详情）
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AddSkuBatchRequest {
+    pub live_id: String,
+    pub hide_error_msg: bool,
+    pub sku_list: Vec<SkuInfo>,
+}
+
+/// 添加商品到购物袋响应
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AddSkuBatchResponse {
+    pub success: Option<bool>,
+    pub success_msg: Option<String>,
+    pub error_msg: Option<String>,
+    pub code: Option<i32>,
+    pub subcode: Option<i32>,
+    // 成功时会返回 skuList（echo back）
+    pub sku_list: Option<Vec<SkuInfo>>,
+    pub live_id: Option<String>,
+    pub hide_error_msg: Option<bool>,
+}
+
+/// 添加商品结果
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AddSkuResult {
+    pub success: bool,
+    pub success_count: i32,
+    pub error_msg: Option<String>,
+}
+
+/// 通过上传文件获取商品详情
+#[tauri::command]
+pub async fn get_sku_info_by_file(
+    cookies: Vec<Cookie>,
+    live_id: i64,
+    sku_ids: Vec<String>,
+) -> Result<Vec<SkuInfo>, String> {
+    info!("[获取商品详情] 直播间: {}, 商品数量: {}", live_id, sku_ids.len());
+
+    if sku_ids.is_empty() {
+        return Ok(vec![]);
+    }
+
+    // 1. 生成临时 xlsx 文件
+    let temp_dir = std::env::temp_dir();
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
+    let file_path = temp_dir.join(format!("jd-upload-{}.xlsx", timestamp));
+
+    info!("[获取商品详情] 生成临时文件: {:?}", file_path);
+
+    // 使用 rust_xlsxwriter 生成 xlsx
+    {
+        use rust_xlsxwriter::Workbook;
+        let mut workbook = Workbook::new();
+        let worksheet = workbook.add_worksheet();
+
+        // 写入表头
+        worksheet.write_string(0, 0, "skuId").map_err(|e| format!("写入表头失败: {}", e))?;
+
+        // 写入商品 ID
+        for (i, sku_id) in sku_ids.iter().enumerate() {
+            worksheet.write_string((i + 1) as u32, 0, sku_id)
+                .map_err(|e| format!("写入商品ID失败: {}", e))?;
+        }
+
+        workbook.save(&file_path).map_err(|e| format!("保存文件失败: {}", e))?;
+    }
+
+    // 2. 读取文件内容
+    let file_content = tokio::fs::read(&file_path)
+        .await
+        .map_err(|e| format!("读取文件失败: {}", e))?;
+
+    // 3. 构建 multipart 请求
+    let cookie_str = cookies_to_string(&cookies);
+    let url = "https://drlives.jd.com/live-shopping-bag/sku/uploadSku";
+
+    let file_name = format!("jd-upload-{}.xlsx", timestamp);
+    let file_part = reqwest::multipart::Part::bytes(file_content)
+        .file_name(file_name.clone())
+        .mime_str("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        .map_err(|e| format!("创建文件部分失败: {}", e))?;
+
+    let form = reqwest::multipart::Form::new()
+        .text("skuFile", "商品上传.xlsx")
+        .text("liveId", live_id.to_string())
+        .text("type", "undefined")
+        .part("file", file_part);
+
+    let client = reqwest::Client::new();
+    let mut headers = reqwest::header::HeaderMap::new();
+    if let Ok(value) = cookie_str.parse() {
+        headers.insert(reqwest::header::COOKIE, value);
+    }
+    headers.insert(
+        reqwest::header::USER_AGENT,
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
+            .parse()
+            .unwrap(),
+    );
+    headers.insert(
+        reqwest::header::REFERER,
+        "https://jlive.jd.com/".parse().unwrap(),
+    );
+    headers.insert(
+        reqwest::header::HOST,
+        "drlives.jd.com".parse().unwrap(),
+    );
+
+    let response = client
+        .post(url)
+        .headers(headers)
+        .multipart(form)
+        .send()
+        .await
+        .map_err(|e| format!("请求失败: {}", e))?;
+
+    // 4. 删除临时文件
+    let _ = tokio::fs::remove_file(&file_path).await;
+
+    let response_text = response
+        .text()
+        .await
+        .map_err(|e| format!("读取响应失败: {}", e))?;
+
+    info!("[获取商品详情] 响应长度: {} 字符", response_text.len());
+
+    let data: GetSkuInfoResponse =
+        serde_json::from_str(&response_text).map_err(|e| format!("解析响应失败: {}", e))?;
+
+    if data.success {
+        let sku_list = data.data.unwrap_or_default();
+        info!("[获取商品详情] 成功获取 {} 个商品详情", sku_list.len());
+        return Ok(sku_list);
+    }
+
+    Err(data.error_msg.unwrap_or_else(|| "获取商品详情失败".to_string()))
+}
+
+/// 批量添加商品到购物袋
+#[tauri::command]
+pub async fn add_sku_to_bag_batch(
+    cookies: Vec<Cookie>,
+    live_id: i64,
+    sku_list: Vec<SkuInfo>,
+) -> Result<AddSkuResult, String> {
+    info!("[批量添加商品] 直播间: {}, 商品数量: {}", live_id, sku_list.len());
+
+    if sku_list.is_empty() {
+        return Ok(AddSkuResult {
+            success: true,
+            success_count: 0,
+            error_msg: None,
+        });
+    }
+
+    let cookie_str = cookies_to_string(&cookies);
+    let url = "https://drlives.jd.com/live-shopping-bag/sku/add";
+
+    let request = AddSkuBatchRequest {
+        live_id: live_id.to_string(),
+        hide_error_msg: true,
+        sku_list: sku_list.clone(),
+    };
+
+    let client = reqwest::Client::new();
+    let headers = build_create_live_headers(&cookie_str);
+
+    let response = client
+        .post(url)
+        .headers(headers)
+        .json(&request)
+        .send()
+        .await
+        .map_err(|e| format!("请求失败: {}", e))?;
+
+    let response_text = response
+        .text()
+        .await
+        .map_err(|e| format!("读取响应失败: {}", e))?;
+
+    info!("[批量添加商品] 响应长度: {} 字符", response_text.len());
+
+    // 尝试解析响应
+    let data: AddSkuBatchResponse = serde_json::from_str(&response_text)
+        .map_err(|e| format!("解析响应失败: {}", e))?;
+
+    // 判断是否成功
+    // 成功时：返回 skuList（echo back），没有 success 字段或 success=null
+    // 失败时：success=false，有 errorMsg
+    if let Some(false) = data.success {
+        // 明确失败
+        return Ok(AddSkuResult {
+            success: false,
+            success_count: 0,
+            error_msg: data.error_msg,
+        });
+    }
+
+    // 成功（返回了 skuList 或没有明确失败）
+    let success_count = data.sku_list.map(|list| list.len() as i32).unwrap_or(sku_list.len() as i32);
+    info!("[批量添加商品] 成功添加 {} 个商品", success_count);
+
+    Ok(AddSkuResult {
+        success: true,
+        success_count,
+        error_msg: None,
+    })
+}

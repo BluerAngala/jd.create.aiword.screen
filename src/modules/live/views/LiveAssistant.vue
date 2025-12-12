@@ -23,8 +23,9 @@ import type {
   AIScriptSettings,
   Cookie,
   CreateLiveRequest,
+  SkuInfo,
 } from '../types'
-import { createLiveRoom } from '../api/jd'
+import { createLiveRoom, getSkuInfoByFile, addSkuToBagBatch } from '../api/jd'
 
 const store = useLiveStore()
 const toast = useToast()
@@ -121,6 +122,89 @@ function formatDateTime(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
 }
 
+// 收集商品 ID（根据 useCount 设置）
+function collectSkuIds(): string[] {
+  const allIds: string[] = []
+  for (const file of store.productFiles) {
+    // useCount=999 表示全部，否则取指定数量
+    const count = file.useCount === 999 ? file.productIds.length : file.useCount
+    allIds.push(...file.productIds.slice(0, count))
+  }
+  // 去重
+  return [...new Set(allIds)]
+}
+
+// 添加商品到购物袋
+async function addSkusToBag(liveId: number, cookies: Cookie[]): Promise<number> {
+  const targetCount = store.liveParams.cartProducts
+  store.addLog('info', `【步骤7】开始添加商品到购物袋，目标数量: ${targetCount}`)
+
+  // 7.1 收集商品 ID
+  const candidateSkuIds = collectSkuIds()
+  store.addLog('info', `【步骤7.1】收集到 ${candidateSkuIds.length} 个候选商品 ID`)
+
+  if (candidateSkuIds.length === 0) {
+    store.addLog('warn', '【步骤7.1】没有可用的商品 ID')
+    return 0
+  }
+
+  // 取需要的数量（不超过目标数量）
+  const skuIdsToFetch = candidateSkuIds.slice(0, targetCount)
+  store.addLog('info', `【步骤7.2】准备获取 ${skuIdsToFetch.length} 个商品详情`)
+
+  // 7.2 获取商品详情
+  let skuInfos: SkuInfo[] = []
+  try {
+    skuInfos = await getSkuInfoByFile(cookies, liveId, skuIdsToFetch)
+    store.addLog('success', `【步骤7.2】✓ 获取到 ${skuInfos.length} 个商品详情`)
+  } catch (error) {
+    store.addLog('error', `【步骤7.2】❌ 获取商品详情失败: ${error}`)
+    return 0
+  }
+
+  if (skuInfos.length === 0) {
+    store.addLog('warn', '【步骤7.2】没有获取到有效的商品详情')
+    return 0
+  }
+
+  // 7.3 循环添加商品到购物袋（每批最多 150 个）
+  let successCount = 0
+  let usedIndex = 0
+  const maxBatchSize = 150
+
+  while (successCount < targetCount && usedIndex < skuInfos.length) {
+    // 计算本批次数量
+    const remaining = targetCount - successCount
+    const available = skuInfos.length - usedIndex
+    const batchSize = Math.min(remaining, maxBatchSize, available)
+
+    // 取出本批次商品
+    const batch = skuInfos.slice(usedIndex, usedIndex + batchSize)
+    usedIndex += batchSize
+
+    store.addLog('info', `【步骤7.3】正在添加第 ${usedIndex - batchSize + 1}-${usedIndex} 个商品...`)
+
+    try {
+      const result = await addSkuToBagBatch(cookies, liveId, batch)
+
+      if (result.success) {
+        successCount += result.success_count
+        store.addLog('success', `【步骤7.3】✓ 本批次成功添加 ${result.success_count} 个商品`)
+      } else {
+        store.addLog('warn', `【步骤7.3】⚠ 添加失败: ${result.error_msg || '未知错误'}`)
+        // 失败时跳出循环，避免无限重试
+        break
+      }
+    } catch (error) {
+      store.addLog('error', `【步骤7.3】❌ 添加商品失败: ${error}`)
+      break
+    }
+  }
+
+  store.addLog('info', `【步骤7】添加完成，成功添加 ${successCount}/${targetCount} 个商品`)
+  return successCount
+}
+
 // 新建直播间
 async function handleCreateLiveRoom() {
   store.addLog('info', '========== 开始创建直播间 ==========')
@@ -180,6 +264,27 @@ async function handleCreateLiveRoom() {
     `【检查3】✓ 已配置 ${productFiles.length} 个商品文件，共 ${totalProducts} 条有效商品`,
   )
 
+  // 3.5 检查直播时间（必须在未来 3 分钟到 30 天内）
+  store.addLog('info', '【检查3.5】检查直播时间...')
+  const now = Date.now()
+  const minTime = now + 3 * 60 * 1000 // 3 分钟后
+  const maxTime = now + 30 * 24 * 60 * 60 * 1000 // 30 天后
+  const startTime = store.liveParams.startTime.getTime()
+
+  if (startTime < minTime) {
+    // 自动调整为 3 分钟后
+    const newStartTime = new Date(minTime)
+    store.setLiveParams({ ...store.liveParams, startTime: newStartTime })
+    store.addLog('warn', '【检查3.5】⚠ 直播时间已过期，已自动调整为 3 分钟后')
+  } else if (startTime > maxTime) {
+    const msg = '直播时间不能超过 30 天后'
+    store.addLog('error', `【检查3.5】❌ ${msg}`)
+    toast.error(msg)
+    return
+  } else {
+    store.addLog('success', '【检查3.5】✓ 直播时间有效')
+  }
+
   // 4. 获取 Cookie
   store.addLog('info', '【检查4】正在获取 Cookie...')
   let cookies: Cookie[] = []
@@ -193,9 +298,14 @@ async function handleCreateLiveRoom() {
     }
     store.addLog('success', `【检查4】✓ 获取到 ${cookies.length} 个 Cookie`)
   } catch (error) {
-    const msg = `获取 Cookie 失败: ${error}`
-    store.addLog('error', `【检查4】❌ ${msg}`)
-    toast.error(msg)
+    const errorMsg = String(error)
+    store.addLog('error', `【检查4】❌ 获取 Cookie 失败: ${errorMsg}`)
+    // 检查是否是浏览器已打开的错误
+    if (errorMsg.includes('浏览器启动失败') || errorMsg.includes('BrowserLaunchFailed')) {
+      toast.error('请先关闭 Chrome 浏览器，然后重新执行')
+    } else {
+      toast.error(`获取 Cookie 失败: ${errorMsg}`)
+    }
     return
   }
 
@@ -252,7 +362,16 @@ async function handleCreateLiveRoom() {
     const liveId = await createLiveRoom(cookies, request)
     store.setLiveRoomCreated(true, liveId)
     store.addLog('success', `【步骤6】✓ 直播间创建成功，ID: ${liveId}`)
-    toast.success(`直播间创建成功，ID: ${liveId}`)
+
+    // 7. 添加商品到购物袋
+    const successCount = await addSkusToBag(liveId, cookies)
+    if (successCount > 0) {
+      store.addLog('success', `【步骤7】✓ 成功添加 ${successCount} 个商品到购物袋`)
+    } else {
+      store.addLog('warn', '【步骤7】⚠ 未能添加商品到购物袋')
+    }
+
+    toast.success(`直播间创建成功，已添加 ${successCount} 个商品`)
   } catch (error) {
     const msg = `创建直播间失败: ${error}`
     store.addLog('error', `【步骤6】❌ ${msg}`)

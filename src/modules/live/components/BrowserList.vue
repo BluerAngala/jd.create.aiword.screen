@@ -8,6 +8,7 @@ import { Icon } from '@iconify/vue'
 import { invoke } from '@tauri-apps/api/core'
 import type { BrowserInfo } from '../types'
 import { useLiveStore } from '../stores/live'
+import { useToast } from '@/core/composables/useToast'
 
 interface ChromeProfile {
   id: string
@@ -47,6 +48,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>()
 const liveStore = useLiveStore()
+const toast = useToast()
 const isLoading = ref(false)
 const isFetchingCookie = ref(false)
 
@@ -145,7 +147,15 @@ async function fetchJdCookies(browser: BrowserInfo) {
       liveStore.addLog('warn', '未检测到京东登录状态')
     }
   } catch (error) {
-    liveStore.addLog('error', `获取 Cookie 失败: ${error}`)
+    const errorMsg = String(error)
+    liveStore.addLog('error', `获取 Cookie 失败: ${errorMsg}`)
+
+    // 检查是否是浏览器已打开的错误
+    if (errorMsg.includes('浏览器启动失败') || errorMsg.includes('BrowserLaunchFailed')) {
+      toast.error('请先关闭 Chrome 浏览器，然后重新点击获取')
+    } else {
+      toast.error(`获取 Cookie 失败: ${errorMsg}`)
+    }
 
     // 更新为未登录状态
     const updatedBrowsers = props.browsers.map((b) => {

@@ -9,6 +9,8 @@ import type {
   RecentLiveRoom,
   CreateLiveRequest,
   LiveGeneralData,
+  SkuInfo,
+  AddSkuResult,
 } from '../types'
 
 /**
@@ -94,4 +96,26 @@ export async function endExplain(
   skuId: string,
 ): Promise<void> {
   return invoke<void>('end_explain', { cookies, liveId, skuId })
+}
+
+/**
+ * 通过上传文件获取商品详情
+ */
+export async function getSkuInfoByFile(
+  cookies: Cookie[],
+  liveId: number,
+  skuIds: string[],
+): Promise<SkuInfo[]> {
+  return invoke<SkuInfo[]>('get_sku_info_by_file', { cookies, liveId, skuIds })
+}
+
+/**
+ * 批量添加商品到购物袋
+ */
+export async function addSkuToBagBatch(
+  cookies: Cookie[],
+  liveId: number,
+  skuList: SkuInfo[],
+): Promise<AddSkuResult> {
+  return invoke<AddSkuResult>('add_sku_to_bag_batch', { cookies, liveId, skuList })
 }
