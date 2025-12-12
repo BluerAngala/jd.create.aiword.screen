@@ -37,7 +37,7 @@ const defaultImageConfig: ImageSettings = {
 // 默认直播参数（开始时间为当前时间 + 3 分钟）
 const getDefaultLiveParams = (): LiveParameters => ({
   totalProducts: 10,
-  cartProducts: 5,
+  cartProducts: 150,
   startTime: new Date(Date.now() + 3 * 60 * 1000),
 })
 

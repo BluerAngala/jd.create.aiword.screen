@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "默认权限配置",
-  "windows": ["main", "screen_*"],
+  "windows": ["main", "screen_*", "screen-*"],
   "permissions": [
     "core:default",
     "core:window:allow-start-dragging",

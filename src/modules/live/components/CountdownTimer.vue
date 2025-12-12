@@ -196,7 +196,7 @@ async function stopCountdownScreen() {
             </h3>
             <button
               class="btn btn-xs"
-              :class="isCountdownScreening ? 'btn-error' : 'btn-ghost'"
+              :class="isCountdownScreening ? 'btn-error' : 'btn-success'"
               @click="isCountdownScreening ? stopCountdownScreen() : startCountdownScreen()"
             >
               <Icon :icon="isCountdownScreening ? 'mdi:cast-off' : 'mdi:cast'" class="text-sm" />

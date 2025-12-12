@@ -36,26 +36,7 @@ const canPrev = () => currentIndex.value > 0
 const canNext = () => currentIndex.value < scripts.value.length - 1
 
 onMounted(async () => {
-  // 从 URL 参数获取初始数据
-  const hash = window.location.hash
-  const queryIndex = hash.indexOf('?')
-  if (queryIndex !== -1) {
-    const params = new URLSearchParams(hash.slice(queryIndex))
-    const scriptsStr = params.get('scripts')
-    const index = params.get('index')
-    if (scriptsStr) {
-      try {
-        scripts.value = JSON.parse(decodeURIComponent(scriptsStr))
-      } catch {
-        // 忽略
-      }
-    }
-    if (index) {
-      currentIndex.value = parseInt(index, 10)
-    }
-  }
-
-  // 监听主窗口同步事件
+  // 监听主窗口同步事件（数据通过事件传递，不再使用 URL 参数）
   unlistenUpdate = await listen<{ scripts: AIScript[]; index: number }>(
     'script-sync-to-screen',
     (event) => {
@@ -67,6 +48,9 @@ onMounted(async () => {
   document.addEventListener('click', () => {
     showContextMenu.value = false
   })
+
+  // 主动请求主窗口发送数据
+  tauriEmit('script-screen-ready')
 })
 
 onUnmounted(() => {
@@ -127,21 +111,23 @@ async function startDrag(e: MouseEvent) {
     class="w-full h-screen bg-base-200 flex flex-col overflow-hidden select-none"
     @contextmenu="handleContextMenu"
   >
-    <!-- 顶部工具栏（可拖动） -->
-    <div class="flex items-center justify-between p-3 bg-base-100 cursor-move" @mousedown="startDrag">
-      <div class="flex items-center gap-2">
+    <!-- 顶部工具栏 -->
+    <div class="flex items-center justify-between p-3 bg-base-100">
+      <!-- 左侧可拖动区域 -->
+      <div class="flex items-center gap-2 cursor-move flex-1" @mousedown="startDrag">
         <Icon icon="mdi:robot" class="text-lg" />
         <span class="font-medium">AI 话术提词</span>
         <span v-if="scripts.length" class="badge badge-ghost badge-sm">
           {{ currentIndex + 1 }}/{{ scripts.length }}
         </span>
       </div>
+      <!-- 右侧按钮区域（不可拖动） -->
       <div class="flex items-center gap-1">
-        <button class="btn btn-outline btn-xs" :disabled="fontSize <= minFontSize" @click.stop="decreaseFontSize">
+        <button class="btn btn-outline btn-xs" :disabled="fontSize <= minFontSize" @click="decreaseFontSize">
           <Icon icon="mdi:format-font-size-decrease" class="text-sm" />
           缩小
         </button>
-        <button class="btn btn-outline btn-xs" :disabled="fontSize >= maxFontSize" @click.stop="increaseFontSize">
+        <button class="btn btn-outline btn-xs" :disabled="fontSize >= maxFontSize" @click="increaseFontSize">
           <Icon icon="mdi:format-font-size-increase" class="text-sm" />
           放大
         </button>
@@ -151,7 +137,7 @@ async function startDrag(e: MouseEvent) {
     <!-- 话术内容 -->
     <div class="flex-1 flex flex-col p-4 min-h-0">
       <!-- 商品信息 -->
-      <div v-if="currentScript()?.productId" class="text-xs text-base-content/60 mb-2">
+      <div v-if="currentScript()?.productId" class="text-sm font-bold text-base-content mb-2">
         <Icon icon="mdi:package-variant" class="inline" />
         商品 ID: {{ currentScript()?.productId }}
       </div>

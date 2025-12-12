@@ -489,11 +489,8 @@ function generateProductScript(product: LiveProduct, index: number): string {
 async function handleStartLive() {
   if (!canStartLive.value) return
 
-  store.addLog('info', '直播将在 1 分钟后开始...')
+  store.addLog('info', '直播已开始，请点击"开始讲解"按钮开始倒计时')
   store.setLiveStarted(true)
-
-  const targetTime = new Date(Date.now() + 60 * 1000)
-  store.startCountdown(targetTime)
 
   // 基于商品数据生成话术
   generateAIScripts()
@@ -530,6 +527,12 @@ async function handleStartExplain(productId: string) {
     isExplaining.value = true
     currentExplainingSku.value = productId
     store.addLog('success', `开始讲解商品: ${productId}`)
+
+    // 开始讲解时启动倒计时
+    if (!store.countdownRunning) {
+      const targetTime = new Date(Date.now() + explainDuration.value * 1000)
+      store.startCountdown(targetTime)
+    }
 
     // 更新投屏图片为当前商品
     const products = store.getCurrentProducts()

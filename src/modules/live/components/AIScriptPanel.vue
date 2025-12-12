@@ -123,7 +123,6 @@ function handleStartFirstExplain() {
 // 开启话术投屏
 async function startScriptScreen() {
   try {
-    const scriptsData = encodeURIComponent(JSON.stringify(props.scripts))
     await invoke('create_screen_window', {
       label: 'screen-script',
       title: '话术投屏',
@@ -134,9 +133,16 @@ async function startScriptScreen() {
       decorations: false,
       resizable: true,
       backgroundColor: '#000000',
-      extraParams: `scripts=${scriptsData}&index=${props.currentIndex}`,
+      extraParams: '',
     })
     isScriptScreening.value = true
+    // 窗口创建后延迟发送数据（等待窗口加载完成）
+    setTimeout(() => {
+      tauriEmit('script-sync-to-screen', {
+        scripts: props.scripts,
+        index: props.currentIndex,
+      })
+    }, 300)
   } catch (error) {
     console.error('开启话术投屏失败:', error)
   }
@@ -163,10 +169,12 @@ watch(
       })
     }
   },
+  { deep: true },
 )
 
 // 投屏窗口操作同步监听器
 let unlistenSync: UnlistenFn | null = null
+let unlistenReady: UnlistenFn | null = null
 
 onMounted(async () => {
   // 监听话术投屏窗口关闭事件
@@ -183,11 +191,22 @@ onMounted(async () => {
       emit('prev')
     }
   })
+
+  // 监听投屏窗口准备就绪事件，立即发送数据
+  unlistenReady = await listen('script-screen-ready', () => {
+    if (isScriptScreening.value) {
+      tauriEmit('script-sync-to-screen', {
+        scripts: props.scripts,
+        index: props.currentIndex,
+      })
+    }
+  })
 })
 
 onUnmounted(() => {
   if (unlistenClose) unlistenClose()
   if (unlistenSync) unlistenSync()
+  if (unlistenReady) unlistenReady()
 })
 </script>
 
@@ -208,7 +227,7 @@ onUnmounted(() => {
           <!-- 话术投屏按钮 -->
           <button
             class="btn btn-xs"
-            :class="isScriptScreening ? 'btn-error' : 'btn-ghost'"
+            :class="isScriptScreening ? 'btn-error' : 'btn-success'"
             @click="isScriptScreening ? stopScriptScreen() : startScriptScreen()"
           >
             <Icon :icon="isScriptScreening ? 'mdi:cast-off' : 'mdi:cast'" class="text-sm" />
@@ -253,7 +272,7 @@ onUnmounted(() => {
       <!-- 话术内容 -->
       <div v-else class="flex-1 flex flex-col">
         <!-- 商品信息提示 -->
-        <div v-if="currentScript?.productId" class="text-xs text-base-content/60 mb-1">
+        <div v-if="currentScript?.productId" class="text-sm font-bold text-base-content mb-1">
           <Icon icon="mdi:package-variant" class="inline" />
           商品 ID: {{ currentScript.productId }}
           <span v-if="isExplaining" class="badge badge-success badge-xs ml-1">讲解中</span>
