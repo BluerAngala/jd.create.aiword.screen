@@ -87,9 +87,11 @@ const canScreen = computed(() => store.getCurrentProducts().length > 0)
 // 讲解时间和休息时间设置（秒）
 const explainDuration = ref(70)
 const restDuration = ref(10)
-const autoExplainEnabled = ref(false) // 是否开启自动讲解
 const explainStartTime = ref(0) // 讲解开始时间戳（用于判断是否满 63 秒）
 const MIN_EXPLAIN_DURATION = 63000 // 最小讲解时长（毫秒）
+
+// 自动讲解开关（使用 store 中的状态）
+const autoExplainEnabled = computed(() => store.autoExplainEnabled)
 
 // 是否可以切换下一条（讲解满 63 秒才能切换）
 const canSwitchNext = computed(() => {
@@ -877,11 +879,9 @@ onUnmounted(() => {
           :is-running="store.countdownRunning"
           :explain-duration="explainDuration"
           :rest-duration="restDuration"
-          :auto-explain-enabled="autoExplainEnabled"
           @complete="handleCountdownComplete"
           @update:explain-duration="explainDuration = $event"
           @update:rest-duration="restDuration = $event"
-          @update:auto-explain-enabled="autoExplainEnabled = $event"
         />
         <div class="flex-1 min-h-0">
           <AIScriptPanel

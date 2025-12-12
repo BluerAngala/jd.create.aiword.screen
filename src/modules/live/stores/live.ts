@@ -79,6 +79,9 @@ export const useLiveStore = defineStore('live', () => {
   const liveSessions = ref<LiveSession[]>(loadLiveSessions())
   const currentSession = ref<LiveSession | null>(null)
 
+  // 自动讲解开关
+  const autoExplainEnabled = ref(false)
+
   // 计算属性
   const selectedBrowser = computed(() =>
     browsers.value.find((b) => b.id === selectedBrowserId.value),
@@ -407,5 +410,8 @@ export const useLiveStore = defineStore('live', () => {
     getCurrentProducts,
     loadSessionByLiveId,
     deleteSession,
+
+    // 自动讲解
+    autoExplainEnabled,
   }
 })

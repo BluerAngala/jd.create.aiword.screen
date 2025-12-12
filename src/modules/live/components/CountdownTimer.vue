@@ -13,14 +13,12 @@ interface Props {
   isRunning: boolean
   explainDuration?: number // 讲解时长（秒）
   restDuration?: number // 休息时长（秒）
-  autoExplainEnabled?: boolean // 是否开启自动讲解
 }
 
 interface Emits {
   (e: 'complete'): void
   (e: 'update:explainDuration', value: number): void
   (e: 'update:restDuration', value: number): void
-  (e: 'update:autoExplainEnabled', value: boolean): void
 }
 
 // 倒计时投屏状态
@@ -32,7 +30,6 @@ let unlistenClose: UnlistenFn | null = null
 const props = withDefaults(defineProps<Props>(), {
   explainDuration: 70,
   restDuration: 10,
-  autoExplainEnabled: false,
 })
 const emit = defineEmits<Emits>()
 
@@ -42,7 +39,6 @@ let timer: ReturnType<typeof setInterval> | null = null
 // 本地编辑状态
 const localExplainDuration = ref(props.explainDuration)
 const localRestDuration = ref(props.restDuration)
-const autoExplainEnabled = computed(() => props.autoExplainEnabled)
 
 // 同步 props 变化
 watch(
@@ -186,26 +182,16 @@ async function stopCountdownScreen() {
     <div class="card-body p-4">
       <div class="flex items-start gap-4">
         <!-- 左侧：讲解时间设置 -->
-        <div class="flex flex-col items-center gap-1">
-          <div class="flex items-center gap-2">
-            <span class="text-sm font-bold text-base-content">讲解时间</span>
-            <input
-              type="checkbox"
-              class="toggle toggle-success toggle-xs"
-              :checked="autoExplainEnabled"
-              @change="emit('update:autoExplainEnabled', ($event.target as HTMLInputElement).checked)"
-            />
-          </div>
-          <div class="flex items-center gap-1">
-            <input
-              type="number"
-              :value="localExplainDuration"
-              min="1"
-              class="input input-bordered input-xs w-16 text-center"
-              @input="updateExplainDuration(Number(($event.target as HTMLInputElement).value))"
-            />
-            <span class="text-xs text-base-content/60">秒</span>
-          </div>
+        <div class="flex items-center gap-2">
+          <span class="text-sm font-bold text-base-content">讲解时间</span>
+          <input
+            type="number"
+            :value="localExplainDuration"
+            min="1"
+            class="input input-bordered input-xs w-16 text-center"
+            @input="updateExplainDuration(Number(($event.target as HTMLInputElement).value))"
+          />
+          <span class="text-xs text-base-content/60">秒</span>
         </div>
 
         <!-- 中间：倒计时 -->
@@ -258,18 +244,16 @@ async function stopCountdownScreen() {
         </div>
 
         <!-- 右侧：休息时间设置 -->
-        <div class="flex flex-col items-center gap-1">
+        <div class="flex items-center gap-2">
           <span class="text-sm font-bold text-base-content">休息时间</span>
-          <div class="flex items-center gap-1">
-            <input
-              type="number"
-              :value="localRestDuration"
-              min="1"
-              class="input input-bordered input-xs w-16 text-center"
-              @input="updateRestDuration(Number(($event.target as HTMLInputElement).value))"
-            />
-            <span class="text-xs text-base-content/60">秒</span>
-          </div>
+          <input
+            type="number"
+            :value="localRestDuration"
+            min="1"
+            class="input input-bordered input-xs w-16 text-center"
+            @input="updateRestDuration(Number(($event.target as HTMLInputElement).value))"
+          />
+          <span class="text-xs text-base-content/60">秒</span>
         </div>
       </div>
     </div>

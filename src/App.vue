@@ -10,7 +10,9 @@ import { AnnouncementBar } from '@/modules/live'
 
 // === 可选模块（不需要可注释掉）===
 import { LoginModal, useAuthStore } from '@/modules/auth'
+import { useLiveStore } from '@/modules/live'
 const authStore = useAuthStore()
+const liveStore = useLiveStore()
 
 // 初始化日志系统
 initLogger()
@@ -39,6 +41,15 @@ const showNavbar = () => !['ScreenContent', 'ScreenCountdown', 'ScreenScript'].i
       <div class="flex-1">
         <AnnouncementBar :content="announcement" />
       </div>
+      <!-- 自动讲解开关 -->
+      <label class="flex items-center gap-1.5 cursor-pointer">
+        <input
+          v-model="liveStore.autoExplainEnabled"
+          type="checkbox"
+          class="checkbox checkbox-success checkbox-sm"
+        />
+        <span :class="['text-sm', liveStore.autoExplainEnabled ? 'text-success' : '']">自动讲解</span>
+      </label>
       <!-- 个人中心按钮 -->
       <button class="btn btn-ghost btn-sm" @click="openUserCenter">
         <Icon icon="mdi:account-circle" class="text-lg" />
