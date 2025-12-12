@@ -11,6 +11,7 @@ import { desktopDir } from '@tauri-apps/api/path'
 import { writeFile } from '@tauri-apps/plugin-fs'
 import type { ProductFile } from '../types'
 import { useLiveStore } from '../stores/live'
+import { useToast } from '@/core/composables'
 
 interface Props {
   expanded?: boolean
@@ -26,14 +27,13 @@ withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>()
 
 const liveStore = useLiveStore()
+const toast = useToast()
 const fileInput = ref<HTMLInputElement | null>(null)
 
 // 商品文件列表（从 store 获取，已持久化）
 const productFiles = computed(() => liveStore.productFiles)
 
-// 拖拽状态
-const dragIndex = ref<number | null>(null)
-const dragOverIndex = ref<number | null>(null)
+
 
 function triggerFileSelect() {
   fileInput.value?.click()
@@ -94,6 +94,7 @@ async function parseXlsxFile(
     reader.onload = (e) => {
       try {
         const data = new Uint8Array(e.target?.result as ArrayBuffer)
+        // 读取完整工作簿
         const workbook = XLSX.read(data, { type: 'array' })
         const firstSheetName = workbook.SheetNames[0]
         if (!firstSheetName) {
@@ -106,6 +107,10 @@ async function parseXlsxFile(
           return
         }
         const jsonData = XLSX.utils.sheet_to_json<unknown[]>(worksheet, { header: 1 })
+
+        // 调试：输出解析结果
+        console.log('[xlsx解析] 工作表范围:', worksheet['!ref'])
+        console.log('[xlsx解析] JSON行数:', jsonData.length)
 
         if (jsonData.length === 0) {
           resolve({ success: false, productIds: [], totalCount: 0, uniqueCount: 0, error: '文件为空' })
@@ -187,6 +192,7 @@ async function handleFileChange(event: Event) {
 
     if (!result.success) {
       liveStore.addLog('error', `${file.name} 解析失败: ${result.error}`)
+      toast.error(`${file.name} 导入失败: ${result.error}`)
       continue
     }
 
@@ -215,41 +221,23 @@ function removeFile(id: string) {
   }
 }
 
-// 拖拽排序
-function handleDragStart(index: number) {
-  dragIndex.value = index
-}
-
-function handleDragOver(event: DragEvent, index: number) {
-  event.preventDefault()
-  dragOverIndex.value = index
-}
-
-function handleDragLeave() {
-  dragOverIndex.value = null
-}
-
-function handleDrop(index: number) {
-  if (dragIndex.value === null || dragIndex.value === index) {
-    dragIndex.value = null
-    dragOverIndex.value = null
-    return
-  }
-
+// 上下移动排序
+function moveUp(index: number) {
+  if (index <= 0) return
   const files = [...productFiles.value]
-  const draggedItem = files.splice(dragIndex.value, 1)[0]
-  if (draggedItem) {
-    files.splice(index, 0, draggedItem)
-    liveStore.updateProductFiles(files)
-  }
-
-  dragIndex.value = null
-  dragOverIndex.value = null
+  const temp = files[index]!
+  files[index] = files[index - 1]!
+  files[index - 1] = temp
+  liveStore.updateProductFiles(files)
 }
 
-function handleDragEnd() {
-  dragIndex.value = null
-  dragOverIndex.value = null
+function moveDown(index: number) {
+  if (index >= productFiles.value.length - 1) return
+  const files = [...productFiles.value]
+  const temp = files[index]!
+  files[index] = files[index + 1]!
+  files[index + 1] = temp
+  liveStore.updateProductFiles(files)
 }
 </script>
 
@@ -262,7 +250,11 @@ function handleDragEnd() {
 
     <div v-if="expanded" class="px-3 pb-2">
       <!-- 操作按钮 -->
-      <div class="flex justify-end gap-2 mb-2">
+      <div class="flex items-center gap-2 mb-2">
+        <span v-if="productFiles.length > 0" class="text-xs text-base-content/60">
+          共 {{ productFiles.length }} 个文件
+        </span>
+        <span class="flex-1"></span>
         <button class="btn btn-ghost btn-sm" @click="downloadTemplate">
           <Icon icon="mdi:download" />
           下载模板
@@ -288,68 +280,70 @@ function handleDragEnd() {
 
       <!-- 文件列表 -->
       <div v-else class="space-y-2 max-h-64 overflow-y-auto">
-        <div
-          v-for="(file, index) in productFiles"
-          :key="file.id"
-          class="p-2 bg-base-200 rounded cursor-move transition-all"
-          :class="{
-            'opacity-50': dragIndex === index,
-            'border-2 border-primary border-dashed': dragOverIndex === index && dragIndex !== index,
-          }"
-          draggable="true"
-          @dragstart="handleDragStart(index)"
-          @dragover="handleDragOver($event, index)"
-          @dragleave="handleDragLeave"
-          @drop="handleDrop(index)"
-          @dragend="handleDragEnd"
-        >
+        <div v-for="(file, index) in productFiles" :key="file.id" class="p-2 bg-base-200 rounded transition-all">
           <!-- 第一行：文件信息 -->
           <div class="flex items-center gap-2">
-            <!-- 拖拽手柄 -->
-            <Icon icon="mdi:drag" class="text-base-content/40" />
-
             <!-- 序号 -->
             <span class="badge badge-ghost badge-sm w-6">{{ index + 1 }}</span>
 
             <!-- 文件名 -->
             <span class="flex-1 text-sm truncate" :title="file.name">{{ file.name }}</span>
 
-            <!-- 删除按钮 -->
-            <button class="btn btn-ghost btn-xs text-error" @click="removeFile(file.id)">
-              <Icon icon="mdi:close" />
+            <!-- 上移按钮 -->
+            <button
+              class="btn btn-ghost btn-xs"
+              :class="{ 'btn-disabled opacity-30': index === 0 }"
+              :disabled="index === 0"
+              @click="moveUp(index)"
+            >
+              <Icon icon="mdi:arrow-up" /> 上移
             </button>
+
+            <!-- 下移按钮 -->
+            <button
+              class="btn btn-ghost btn-xs"
+              :class="{ 'btn-disabled opacity-30': index === productFiles.length - 1 }"
+              :disabled="index === productFiles.length - 1"
+              @click="moveDown(index)"
+            >
+              <Icon icon="mdi:arrow-down" /> 下移
+            </button>
+
           </div>
 
           <!-- 第二行：数量设置 -->
-          <div class="flex items-center gap-4 mt-2 ml-6 text-xs">
-            <!-- 有效商品数量 -->
-            <div class="flex items-center gap-1 text-base-content/70">
-              <span>有效商品：</span>
-              <span class="font-medium">{{ file.uniqueCount }} 条</span>
+          <div class="flex items-center justify-between mt-2 ml-8 text-xs">
+            <div class="flex items-center gap-4">
+              <!-- 有效商品数量 -->
+              <div class="flex items-center gap-1 text-base-content/70">
+                <span>有效商品：</span>
+                <span class="font-medium">{{ file.uniqueCount }} 条</span>
+              </div>
+
+              <!-- 每场使用数量 -->
+              <div class="flex items-center gap-1">
+                <span class="text-base-content/70">每场添加：</span>
+                <input
+                  :value="file.useCount"
+                  type="number"
+                  min="1"
+                  :max="file.uniqueCount"
+                  class="input input-bordered input-xs w-16 text-center"
+                  @click.stop
+                  @change="(e) => liveStore.updateProductFileUseCount(file.id, Number((e.target as HTMLInputElement).value))"
+                />
+                <span class="text-base-content/70">条</span>
+              </div>
             </div>
 
-            <!-- 每场使用数量 -->
-            <div class="flex items-center gap-1">
-              <span class="text-base-content/70">每场添加：</span>
-              <input
-                :value="file.useCount"
-                type="number"
-                min="1"
-                :max="file.uniqueCount"
-                class="input input-bordered input-xs w-16 text-center"
-                @click.stop
-                @change="(e) => liveStore.updateProductFileUseCount(file.id, Number((e.target as HTMLInputElement).value))"
-              />
-              <span class="text-base-content/70">条</span>
-            </div>
+            <!-- 删除按钮 -->
+            <button class="btn btn-ghost btn-xs text-error" @click="removeFile(file.id)">
+              <Icon icon="mdi:delete" /> 删除
+            </button>
           </div>
         </div>
       </div>
 
-      <!-- 汇总信息 -->
-      <div v-if="productFiles.length > 1" class="mt-2 pt-2 border-t border-base-300 text-xs text-base-content/60">
-        共 {{ productFiles.length }} 个文件
-      </div>
     </div>
   </div>
 </template>

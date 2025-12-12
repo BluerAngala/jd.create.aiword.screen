@@ -122,87 +122,97 @@ function formatDateTime(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
 }
 
-// 收集商品 ID（根据 useCount 设置）
-function collectSkuIds(): string[] {
-  const allIds: string[] = []
-  for (const file of store.productFiles) {
-    // useCount=999 表示全部，否则取指定数量
-    const count = file.useCount === 999 ? file.productIds.length : file.useCount
-    allIds.push(...file.productIds.slice(0, count))
-  }
-  // 去重
-  return [...new Set(allIds)]
-}
-
-// 添加商品到购物袋
+// 添加商品到购物袋（按文件顺序处理）
 async function addSkusToBag(liveId: number, cookies: Cookie[]): Promise<number> {
   const targetCount = store.liveParams.cartProducts
   store.addLog('info', `【步骤7】开始添加商品到购物袋，目标数量: ${targetCount}`)
 
-  // 7.1 收集商品 ID
-  const candidateSkuIds = collectSkuIds()
-  store.addLog('info', `【步骤7.1】收集到 ${candidateSkuIds.length} 个候选商品 ID`)
-
-  if (candidateSkuIds.length === 0) {
-    store.addLog('warn', '【步骤7.1】没有可用的商品 ID')
+  const productFiles = store.productFiles
+  if (!productFiles || productFiles.length === 0) {
+    store.addLog('warn', '【步骤7】没有商品文件')
     return 0
   }
 
-  // 取需要的数量（不超过目标数量）
-  const skuIdsToFetch = candidateSkuIds.slice(0, targetCount)
-  store.addLog('info', `【步骤7.2】准备获取 ${skuIdsToFetch.length} 个商品详情`)
-
-  // 7.2 获取商品详情
-  let skuInfos: SkuInfo[] = []
-  try {
-    skuInfos = await getSkuInfoByFile(cookies, liveId, skuIdsToFetch)
-    store.addLog('success', `【步骤7.2】✓ 获取到 ${skuInfos.length} 个商品详情`)
-  } catch (error) {
-    store.addLog('error', `【步骤7.2】❌ 获取商品详情失败: ${error}`)
-    return 0
-  }
-
-  if (skuInfos.length === 0) {
-    store.addLog('warn', '【步骤7.2】没有获取到有效的商品详情')
-    return 0
-  }
-
-  // 7.3 循环添加商品到购物袋（每批最多 150 个）
-  let successCount = 0
-  let usedIndex = 0
+  let totalSuccess = 0
   const maxBatchSize = 150
 
-  while (successCount < targetCount && usedIndex < skuInfos.length) {
-    // 计算本批次数量
-    const remaining = targetCount - successCount
-    const available = skuInfos.length - usedIndex
-    const batchSize = Math.min(remaining, maxBatchSize, available)
+  // 按文件顺序处理
+  for (let fileIndex = 0; fileIndex < productFiles.length; fileIndex++) {
+    if (totalSuccess >= targetCount) break
 
-    // 取出本批次商品
-    const batch = skuInfos.slice(usedIndex, usedIndex + batchSize)
-    usedIndex += batchSize
+    const file = productFiles[fileIndex]!
+    const useCount = file.useCount === 999 ? file.productIds.length : file.useCount
+    const fileSkuIds = file.productIds.slice(0, useCount)
 
-    store.addLog('info', `【步骤7.3】正在添加第 ${usedIndex - batchSize + 1}-${usedIndex} 个商品...`)
+    store.addLog('info', `【文件${fileIndex + 1}】开始处理: ${file.name}，共 ${fileSkuIds.length} 个商品`)
 
-    try {
-      const result = await addSkuToBagBatch(cookies, liveId, batch)
+    let fileSuccess = 0
+    let fileInvalid = 0
+    let skuIndex = 0
 
-      if (result.success) {
-        successCount += result.success_count
-        store.addLog('success', `【步骤7.3】✓ 本批次成功添加 ${result.success_count} 个商品`)
-      } else {
-        store.addLog('warn', `【步骤7.3】⚠ 添加失败: ${result.error_msg || '未知错误'}`)
-        // 失败时跳出循环，避免无限重试
-        break
+    // 处理当前文件的商品
+    while (totalSuccess < targetCount && skuIndex < fileSkuIds.length) {
+      // 计算本批次获取数量
+      const remaining = targetCount - totalSuccess
+      const available = fileSkuIds.length - skuIndex
+      const fetchCount = Math.min(remaining + 20, available, 100) // 多取一些备用
+
+      if (fetchCount <= 0) break
+
+      const batchIds = fileSkuIds.slice(skuIndex, skuIndex + fetchCount)
+      skuIndex += fetchCount
+
+      // 获取商品详情
+      let skuInfos: SkuInfo[] = []
+      try {
+        skuInfos = await getSkuInfoByFile(cookies, liveId, batchIds)
+        const invalidCount = batchIds.length - skuInfos.length
+        fileInvalid += invalidCount
+        if (invalidCount > 0) {
+          store.addLog('warn', `【文件${fileIndex + 1}】获取详情: ${skuInfos.length} 有效，${invalidCount} 无效`)
+        }
+      } catch (error) {
+        store.addLog('error', `【文件${fileIndex + 1}】获取商品详情失败: ${error}`)
+        continue
       }
-    } catch (error) {
-      store.addLog('error', `【步骤7.3】❌ 添加商品失败: ${error}`)
-      break
+
+      if (skuInfos.length === 0) continue
+
+      // 添加商品到购物袋
+      let infoIndex = 0
+      while (totalSuccess < targetCount && infoIndex < skuInfos.length) {
+        const batchRemaining = targetCount - totalSuccess
+        const batchAvailable = skuInfos.length - infoIndex
+        const batchSize = Math.min(batchRemaining, maxBatchSize, batchAvailable)
+
+        const batch = skuInfos.slice(infoIndex, infoIndex + batchSize)
+        infoIndex += batchSize
+
+        try {
+          const result = await addSkuToBagBatch(cookies, liveId, batch)
+          if (result.success) {
+            fileSuccess += result.success_count
+            totalSuccess += result.success_count
+          }
+        } catch (error) {
+          store.addLog('error', `【文件${fileIndex + 1}】添加失败: ${error}`)
+        }
+      }
     }
+
+    // 输出当前文件的统计
+    store.addLog(
+      'success',
+      `【文件${fileIndex + 1}】${file.name} 完成: 添加 ${fileSuccess} 个，无效 ${fileInvalid} 个，累计 ${totalSuccess}/${targetCount}`,
+    )
   }
 
-  store.addLog('info', `【步骤7】添加完成，成功添加 ${successCount}/${targetCount} 个商品`)
-  return successCount
+  if (totalSuccess < targetCount) {
+    store.addLog('warn', `【步骤7】所有文件处理完毕，实际添加 ${totalSuccess}/${targetCount} 个`)
+  } else {
+    store.addLog('success', `【步骤7】✓ 成功添加 ${totalSuccess} 个商品`)
+  }
+  return totalSuccess
 }
 
 // 新建直播间
