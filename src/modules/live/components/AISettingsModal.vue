@@ -136,11 +136,11 @@ function handleClose() {
           <label class="label">
             <span class="label-text-alt text-base-content/50">
               <a
-                href="https://cloud.siliconflow.cn/account/ak"
+                href="https://cloud.siliconflow.cn/i/WFoChvZf"
                 target="_blank"
                 class="link link-primary"
               >
-                点击获取 SiliconFlow API Key
+                点击获取 API 秘钥
               </a>
             </span>
           </label>

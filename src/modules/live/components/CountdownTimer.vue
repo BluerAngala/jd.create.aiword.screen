@@ -174,7 +174,7 @@ async function stopCountdownScreen() {
       <div class="flex items-start gap-4">
         <!-- 左侧：讲解时间设置 -->
         <div class="flex flex-col items-center gap-1">
-          <span class="text-xs text-base-content/60">讲解时间</span>
+          <span class="text-sm font-bold text-base-content">讲解时间</span>
           <div class="flex items-center gap-1">
             <input
               type="number"
@@ -233,7 +233,7 @@ async function stopCountdownScreen() {
 
         <!-- 右侧：休息时间设置 -->
         <div class="flex flex-col items-center gap-1">
-          <span class="text-xs text-base-content/60">休息时间</span>
+          <span class="text-sm font-bold text-base-content">休息时间</span>
           <div class="flex items-center gap-1">
             <input
               type="number"

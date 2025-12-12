@@ -732,7 +732,7 @@ onUnmounted(() => {
       <div class="flex gap-2">
         <button
           class="btn btn-outline btn-sm"
-          :disabled="!isBrowserLoggedIn || store.isLiveRoomCreated"
+          :disabled="!isBrowserLoggedIn"
           @click="fetchRecentLiveRooms"
         >
           <Icon icon="mdi:format-list-bulleted" />
@@ -740,7 +740,7 @@ onUnmounted(() => {
         </button>
         <button
           class="btn btn-secondary btn-sm"
-          :disabled="!isBrowserLoggedIn || store.isLiveRoomCreated"
+          :disabled="!isBrowserLoggedIn"
           @click="handleCreateLiveRoom"
         >
           <Icon icon="mdi:plus-circle" />
