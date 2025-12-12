@@ -45,6 +45,14 @@ pub fn run() {
             cookie::read_chrome_cookies,
             // jd 模块
             jd::verify_jd_login,
+            jd::get_recent_live_rooms,
+            jd::create_live_room,
+            jd::upload_sku,
+            jd::add_sku_to_bag,
+            jd::get_live_general_data,
+            jd::get_h5_url,
+            jd::start_explain,
+            jd::end_explain,
             // screen 模块
             screen::create_screen_window,
             screen::close_screen_window,

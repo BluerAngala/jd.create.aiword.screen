@@ -111,3 +111,53 @@ export interface LiveState {
   aiScripts: AIScript[]
   currentScriptIndex: number
 }
+
+
+// ============ 京东直播 API 类型 ============
+
+// 京东登录验证结果
+export interface JdLoginResult {
+  is_logged_in: boolean
+  nickname?: string
+  avatar?: string
+}
+
+// 最近使用的直播间
+export interface RecentLiveRoom {
+  live_id?: string
+  title?: string
+  cover_url?: string
+  status?: number
+  start_time?: string
+  end_time?: string
+}
+
+// 创建直播间请求
+export interface CreateLiveRequest {
+  title: string
+  cover_url?: string
+  start_time?: string
+  end_time?: string
+}
+
+// 直播实时数据
+export interface LiveGeneralData {
+  online_count?: number
+  total_watch_count?: number
+  like_count?: number
+  comment_count?: number
+  share_count?: number
+  order_count?: number
+  order_amount?: number
+}
+
+// Cookie 类型
+export interface Cookie {
+  name: string
+  value: string
+  domain: string
+  path: string
+  expires: number
+  http_only: boolean
+  secure: boolean
+}

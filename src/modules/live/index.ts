@@ -5,6 +5,9 @@
 // 导出类型
 export * from './types'
 
+// 导出 API
+export * as jdApi from './api/jd'
+
 // 导出 Store
 export { useLiveStore } from './stores/live'
 
