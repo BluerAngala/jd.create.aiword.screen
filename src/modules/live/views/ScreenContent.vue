@@ -4,8 +4,9 @@
  * 独立窗口显示商品图片，供 OBS 捕获
  * 无边框窗口，右键菜单关闭，支持拖动
  */
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
+import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 
 // 窗口标签（固定值）
 const WINDOW_LABEL = 'screen-window'
@@ -22,7 +23,10 @@ const showContextMenu = ref(false)
 const menuPosition = ref({ x: 0, y: 0 })
 let menuTimer: number | null = null
 
-onMounted(() => {
+// 事件监听器
+let unlistenUpdateImage: UnlistenFn | null = null
+
+onMounted(async () => {
   // 从 hash URL 参数获取图片地址（格式：/#/screen-content?imageUrl=xxx）
   const hash = window.location.hash
   const queryIndex = hash.indexOf('?')
@@ -38,6 +42,21 @@ onMounted(() => {
   document.addEventListener('click', () => {
     showContextMenu.value = false
   })
+
+  // 监听图片更新事件（切换话术时触发）
+  unlistenUpdateImage = await listen<{ imageUrl: string }>('update-screen-image', (event) => {
+    if (event.payload?.imageUrl) {
+      loading.value = true
+      error.value = false
+      imageUrl.value = event.payload.imageUrl
+    }
+  })
+})
+
+onUnmounted(() => {
+  if (unlistenUpdateImage) {
+    unlistenUpdateImage()
+  }
 })
 
 function handleImageLoad() {

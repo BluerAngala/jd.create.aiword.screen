@@ -3,9 +3,10 @@
  * 京东直播助手主页面
  * 整合所有组件，实现完整的直播助手界面
  */
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import { invoke } from '@tauri-apps/api/core'
+import { emit } from '@tauri-apps/api/event'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { useLiveStore } from '../stores/live'
 import { useToast } from '@/core/composables/useToast'
@@ -1006,6 +1007,33 @@ function handleDeleteSession(session: LiveSession, event: Event) {
 
 // 窗口关闭事件监听器
 let unlistenScreenWindow: UnlistenFn | null = null
+
+// 监听话术索引变化，自动更新投屏图片
+watch(
+  () => store.currentScriptIndex,
+  async (newIndex) => {
+    // 只有在投屏中才更新图片
+    if (!isScreening.value) return
+
+    const products = store.getCurrentProducts()
+    const currentScript = store.aiScripts[newIndex]
+    // 根据话术的 productId 找到对应商品
+    const product = currentScript?.productId
+      ? products.find((p) => p.sku === currentScript.productId)
+      : products[newIndex]
+
+    if (product?.img) {
+      screenImageUrl.value = product.img
+      // 发送事件通知投屏窗口更新图片
+      try {
+        await emit('update-screen-image', { imageUrl: product.img })
+        store.addLog('info', `投屏已切换到: ${product.title}`)
+      } catch (error) {
+        console.error('更新投屏图片失败:', error)
+      }
+    }
+  },
+)
 
 // 组件挂载时初始化
 onMounted(async () => {
