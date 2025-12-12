@@ -5,9 +5,7 @@
  */
 import { ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-
-// 默认模型
-const DEFAULT_MODEL = 'Qwen/Qwen2-7B-Instruct'
+import { DEFAULT_AI_MODEL, API_ENDPOINTS, SILICON_FLOW_REGISTER_URL } from '@/config/constants'
 
 interface AISettings {
   model: string
@@ -76,7 +74,7 @@ async function fetchModels() {
   modelError.value = ''
 
   try {
-    const response = await fetch('https://api.siliconflow.cn/v1/models?type=text', {
+    const response = await fetch(`${API_ENDPOINTS.MODELS}?type=text`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${localSettings.value.apiKey}`,
@@ -92,7 +90,7 @@ async function fetchModels() {
 
     // 如果当前模型不在列表中，使用默认模型
     if (!localSettings.value.model || !models.value.find((m) => m.id === localSettings.value.model)) {
-      localSettings.value.model = DEFAULT_MODEL
+      localSettings.value.model = DEFAULT_AI_MODEL
     }
   } catch (error) {
     modelError.value = error instanceof Error ? error.message : '获取模型列表失败'
@@ -136,7 +134,7 @@ function handleClose() {
           <label class="label">
             <span class="label-text-alt text-base-content/50">
               <a
-                href="https://cloud.siliconflow.cn/i/WFoChvZf"
+                :href="SILICON_FLOW_REGISTER_URL"
                 target="_blank"
                 class="link link-primary"
               >
@@ -156,7 +154,7 @@ function handleClose() {
             </span>
           </label>
           <select v-model="localSettings.model" class="select select-bordered w-full">
-            <option v-if="models.length === 0" :value="DEFAULT_MODEL">{{ DEFAULT_MODEL }}</option>
+            <option v-if="models.length === 0" :value="DEFAULT_AI_MODEL">{{ DEFAULT_AI_MODEL }}</option>
             <option v-for="model in models" :key="model.id" :value="model.id">
               {{ model.id }}
             </option>

@@ -6,6 +6,12 @@
 import { ref, watch, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useLiveStore } from '../stores/live'
+import {
+  STORAGE_KEYS,
+  API_ENDPOINTS,
+  AI_PROMPTS,
+  AI_REQUEST_DEFAULTS,
+} from '@/config/constants'
 
 interface Props {
   visible: boolean
@@ -20,9 +26,6 @@ const emit = defineEmits<Emits>()
 
 const store = useLiveStore()
 
-// 本地存储 key
-const TITLE_SETTINGS_KEY = 'jd-live-title-settings'
-
 // 标题数量
 const titleCount = ref(10)
 // 生成的标题列表
@@ -30,9 +33,7 @@ const titles = ref<string[]>([])
 // 是否正在生成
 const isGenerating = ref(false)
 // 提示词
-const prompt = ref(
-  '生成京东直播间通用标题，要求：\n1.每个标题不超过15个字 \n2.简洁有力突出卖点 \n3.不要标点符号 \n4.不要序号 \n5.不要有具体的商品类型或者名称 \n6.不要使用敏感词如：诱惑、最、第一、绝对、秒杀、疯狂、限时等夸大或营销敏感词汇',
-)
+const prompt = ref(AI_PROMPTS.TITLE_GENERATION)
 // 是否显示提示词设置
 const showPromptSettings = ref(false)
 // 错误信息
@@ -41,12 +42,12 @@ const errorMsg = ref('')
 // 加载保存的设置
 function loadSettings() {
   try {
-    const saved = localStorage.getItem(TITLE_SETTINGS_KEY)
+    const saved = localStorage.getItem(STORAGE_KEYS.TITLE_SETTINGS)
     if (saved) {
       const data = JSON.parse(saved)
       titleCount.value = data.titleCount || 5
       titles.value = data.titles || []
-      prompt.value = data.prompt || prompt.value
+      prompt.value = data.prompt || AI_PROMPTS.TITLE_GENERATION
     }
   } catch {
     // 忽略
@@ -56,7 +57,7 @@ function loadSettings() {
 // 保存设置
 function saveSettings() {
   localStorage.setItem(
-    TITLE_SETTINGS_KEY,
+    STORAGE_KEYS.TITLE_SETTINGS,
     JSON.stringify({
       titleCount: titleCount.value,
       titles: titles.value,
@@ -91,7 +92,7 @@ async function generateTitles() {
   errorMsg.value = ''
 
   try {
-    const response = await fetch('https://api.siliconflow.cn/v1/chat/completions', {
+    const response = await fetch(API_ENDPOINTS.CHAT_COMPLETIONS, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -105,8 +106,8 @@ async function generateTitles() {
             content: `${prompt.value}\n\n请生成 ${titleCount.value} 个直播间标题，每行一个标题，不要序号，不要其他解释。`,
           },
         ],
-        temperature: 0.8,
-        max_tokens: 1000,
+        temperature: AI_REQUEST_DEFAULTS.TITLE_TEMPERATURE,
+        max_tokens: AI_REQUEST_DEFAULTS.TITLE_MAX_TOKENS,
       }),
     })
 

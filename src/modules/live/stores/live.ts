@@ -14,10 +14,13 @@ import type {
   LiveSession,
   LiveProduct,
 } from '../types'
-
-const SETTINGS_KEY = 'jd-live-assistant-settings'
-const AI_SETTINGS_KEY = 'jd-live-assistant-ai-settings'
-const PRODUCT_FILES_KEY = 'jd-live-assistant-product-files'
+import {
+  STORAGE_KEYS,
+  DEFAULT_AI_MODEL,
+  AI_PROMPTS,
+  DEFAULTS,
+  LIVE_CONFIG,
+} from '@/config/constants'
 
 // 默认设置
 const defaultSettings: AppSettings = {
@@ -30,15 +33,15 @@ const defaultSettings: AppSettings = {
 
 // 默认图片配置
 const defaultImageConfig: ImageSettings = {
-  width: 300,
-  height: 300,
+  width: DEFAULTS.IMAGE_WIDTH,
+  height: DEFAULTS.IMAGE_HEIGHT,
 }
 
 // 默认直播参数（开始时间为当前时间 + 3 分钟）
 const getDefaultLiveParams = (): LiveParameters => ({
-  totalProducts: 10,
-  cartProducts: 150,
-  startTime: new Date(Date.now() + 3 * 60 * 1000),
+  totalProducts: DEFAULTS.TOTAL_PRODUCTS,
+  cartProducts: DEFAULTS.CART_PRODUCTS,
+  startTime: new Date(Date.now() + LIVE_CONFIG.MIN_START_TIME_MINUTES * 60 * 1000),
 })
 
 export const useLiveStore = defineStore('live', () => {
@@ -92,7 +95,7 @@ export const useLiveStore = defineStore('live', () => {
   // 设置相关方法
   function loadSettings(): AppSettings {
     try {
-      const saved = localStorage.getItem(SETTINGS_KEY)
+      const saved = localStorage.getItem(STORAGE_KEYS.SETTINGS)
       if (saved) {
         return JSON.parse(saved)
       }
@@ -104,13 +107,13 @@ export const useLiveStore = defineStore('live', () => {
 
   function saveSettings(newSettings: AppSettings) {
     settings.value = newSettings
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(newSettings))
+    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(newSettings))
   }
 
   // AI 设置相关方法
   function loadAISettings(): AIScriptSettings {
     try {
-      const saved = localStorage.getItem(AI_SETTINGS_KEY)
+      const saved = localStorage.getItem(STORAGE_KEYS.AI_SETTINGS)
       if (saved) {
         return JSON.parse(saved)
       }
@@ -118,16 +121,16 @@ export const useLiveStore = defineStore('live', () => {
       // 忽略解析错误
     }
     return {
-      model: 'Qwen/Qwen2-7B-Instruct',
+      model: DEFAULT_AI_MODEL,
       apiKey: '',
-      prompt: '你是一个专业的直播带货主播，请根据商品信息生成吸引人的直播话术。',
+      prompt: AI_PROMPTS.SCRIPT_SYSTEM,
     }
   }
 
   // 商品文件相关方法
   function loadProductFiles(): ProductFile[] {
     try {
-      const saved = localStorage.getItem(PRODUCT_FILES_KEY)
+      const saved = localStorage.getItem(STORAGE_KEYS.PRODUCT_FILES)
       if (saved) {
         return JSON.parse(saved)
       }
@@ -138,7 +141,7 @@ export const useLiveStore = defineStore('live', () => {
   }
 
   function saveProductFiles() {
-    localStorage.setItem(PRODUCT_FILES_KEY, JSON.stringify(productFiles.value))
+    localStorage.setItem(STORAGE_KEYS.PRODUCT_FILES, JSON.stringify(productFiles.value))
   }
 
   function addProductFile(file: ProductFile) {
@@ -196,8 +199,7 @@ export const useLiveStore = defineStore('live', () => {
     liveParams.value = params
   }
 
-  // 日志方法（最大 500 条，超出自动清除旧的）
-  const MAX_LOGS = 500
+  // 日志方法（超出自动清除旧的）
   function addLog(level: LogEntry['level'], message: string) {
     const entry: LogEntry = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
@@ -207,8 +209,8 @@ export const useLiveStore = defineStore('live', () => {
     }
     logs.value.push(entry)
     // 超出最大条数时，移除最旧的日志
-    if (logs.value.length > MAX_LOGS) {
-      logs.value = logs.value.slice(-MAX_LOGS)
+    if (logs.value.length > LIVE_CONFIG.MAX_LOGS) {
+      logs.value = logs.value.slice(-LIVE_CONFIG.MAX_LOGS)
     }
   }
 
@@ -268,7 +270,7 @@ export const useLiveStore = defineStore('live', () => {
 
   function saveAIScriptSettings(newSettings: AIScriptSettings) {
     aiScriptSettings.value = newSettings
-    localStorage.setItem(AI_SETTINGS_KEY, JSON.stringify(newSettings))
+    localStorage.setItem(STORAGE_KEYS.AI_SETTINGS, JSON.stringify(newSettings))
   }
 
   // 直播场次相关方法（从文件加载，初始返回空数组，需要调用 initLiveSessions 异步加载）
@@ -337,9 +339,9 @@ export const useLiveStore = defineStore('live', () => {
       liveSessions.value.unshift(currentSession.value) // 新的放在前面
     }
 
-    // 只保留最近 50 场
-    if (liveSessions.value.length > 50) {
-      liveSessions.value = liveSessions.value.slice(0, 50)
+    // 只保留最近的场次
+    if (liveSessions.value.length > LIVE_CONFIG.MAX_SESSIONS) {
+      liveSessions.value = liveSessions.value.slice(0, LIVE_CONFIG.MAX_SESSIONS)
     }
 
     await saveLiveSessions()

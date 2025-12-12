@@ -255,7 +255,6 @@ onUnmounted(() => {
             <Icon icon="mdi:cog" class="text-sm" />
             AI 设置
           </button>
-          <span class="text-xs text-base-content/60 ml-1">{{ progress }}</span>
         </div>
       </div>
 
@@ -307,49 +306,56 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <div class="flex-1 min-h-0 overflow-y-auto bg-base-200/50 rounded-lg p-3 mb-3 relative">
+        <div class="flex-1 min-h-0 overflow-y-auto bg-base-200/50 rounded-lg p-3 mb-3">
           <p class="leading-relaxed whitespace-pre-wrap" :style="{ fontSize: fontSize + 'rem' }">
             {{ currentScript?.content || '' }}
           </p>
-          <!-- 字数统计 -->
-          <span class="sticky bottom-0 right-0 float-right text-xs text-base-content/40 bg-base-200/80 px-1 rounded">{{ wordCount }} 字</span>
         </div>
 
-        <!-- 切换按钮 - 始终显示上下一条 -->
-        <div class="flex justify-center items-center gap-2">
-          <button class="btn btn-sm btn-outline" :disabled="!canPrev" @click="handlePrev">
-            <Icon icon="mdi:chevron-left" />
-            上一条
-          </button>
+        <!-- 切换按钮 - 两端对齐：左边条数，右边字数 -->
+        <div class="flex justify-between items-center">
+          <!-- 左侧：当前条数/总条数 -->
+          <span class="text-sm text-base-content/60">{{ progress }}</span>
 
-          <!-- 只有开启自动讲解时才显示讲解按钮 -->
-          <template v-if="autoExplainEnabled">
-            <!-- 未开始讲解：显示开始讲解按钮 -->
-            <button
-              v-if="!isExplaining"
-              class="btn btn-sm btn-success"
-              :disabled="!canExplain || !currentScript?.productId"
-              @click="handleStartFirstExplain"
-            >
-              <Icon icon="mdi:microphone" />
-              开始讲解
+          <!-- 中间：操作按钮 -->
+          <div class="flex items-center gap-2">
+            <button class="btn btn-sm btn-outline" :disabled="!canPrev" @click="handlePrev">
+              <Icon icon="mdi:chevron-left" />
+              上一条
             </button>
 
-            <!-- 讲解中：显示停止讲解按钮 -->
-            <button
-              v-else
-              class="btn btn-sm btn-error"
-              @click="handleStopExplain"
-            >
-              <Icon icon="mdi:microphone-off" />
-              停止讲解
-            </button>
-          </template>
+            <!-- 只有开启自动讲解时才显示讲解按钮 -->
+            <template v-if="autoExplainEnabled">
+              <!-- 未开始讲解：显示开始讲解按钮 -->
+              <button
+                v-if="!isExplaining"
+                class="btn btn-sm btn-success"
+                :disabled="!canExplain || !currentScript?.productId"
+                @click="handleStartFirstExplain"
+              >
+                <Icon icon="mdi:microphone" />
+                开始讲解
+              </button>
 
-          <button class="btn btn-sm btn-outline" :disabled="!canNext" @click="handleNext">
-            下一条
-            <Icon icon="mdi:chevron-right" />
-          </button>
+              <!-- 讲解中：显示停止讲解按钮 -->
+              <button
+                v-else
+                class="btn btn-sm btn-error"
+                @click="handleStopExplain"
+              >
+                <Icon icon="mdi:microphone-off" />
+                停止讲解
+              </button>
+            </template>
+
+            <button class="btn btn-sm btn-outline" :disabled="!canNext" @click="handleNext">
+              下一条
+              <Icon icon="mdi:chevron-right" />
+            </button>
+          </div>
+
+          <!-- 右侧：字数统计 -->
+          <span class="text-sm text-base-content/60">{{ wordCount }} 字</span>
         </div>
       </div>
     </div>

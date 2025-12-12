@@ -36,12 +36,19 @@ import {
   startExplain,
   endExplain,
 } from '../api/jd'
+import {
+  STORAGE_KEYS,
+  LIVE_CONFIG,
+  DEFAULTS,
+  AI_PROMPTS,
+  API_ENDPOINTS,
+  DEFAULT_AI_MODEL,
+  AI_REQUEST_DEFAULTS,
+  generateScriptUserPrompt,
+} from '@/config/constants'
 
 const store = useLiveStore()
 const toast = useToast()
-
-// 直播间标题配置存储 key
-const TITLE_SETTINGS_KEY = 'jd-live-title-settings'
 
 // 手风琴展开状态
 const expandedPanel = ref<string | null>(null)
@@ -86,10 +93,9 @@ const screenImageUrl = ref<string | null>(null)
 const canScreen = computed(() => store.getCurrentProducts().length > 0)
 
 // 讲解时间和休息时间设置（秒）
-const explainDuration = ref(70)
-const restDuration = ref(10)
+const explainDuration = ref(LIVE_CONFIG.DEFAULT_EXPLAIN_DURATION)
+const restDuration = ref(LIVE_CONFIG.DEFAULT_REST_DURATION)
 const explainStartTime = ref(0) // 讲解开始时间戳（用于判断是否满 63 秒）
-const MIN_EXPLAIN_DURATION = 63000 // 最小讲解时长（毫秒）
 
 // 自动讲解开关（使用 store 中的状态）
 const autoExplainEnabled = computed(() => store.autoExplainEnabled)
@@ -97,7 +103,7 @@ const autoExplainEnabled = computed(() => store.autoExplainEnabled)
 // 是否可以切换下一条（讲解满 63 秒才能切换）
 const canSwitchNext = computed(() => {
   if (!isExplaining.value || explainStartTime.value === 0) return true
-  return Date.now() - explainStartTime.value >= MIN_EXPLAIN_DURATION
+  return Date.now() - explainStartTime.value >= LIVE_CONFIG.MIN_EXPLAIN_DURATION
 })
 
 // 处理点击下一条（由 AIScriptPanel 触发）
@@ -128,7 +134,7 @@ function startRestAndNextExplain() {
       store.nextScript()
 
       // 延迟后开始讲解下一个商品
-      await new Promise((resolve) => setTimeout(resolve, EXPLAIN_ACTION_DELAY))
+      await new Promise((resolve) => setTimeout(resolve, LIVE_CONFIG.EXPLAIN_ACTION_DELAY))
 
       const nextScript = store.aiScripts[store.currentScriptIndex]
       if (nextScript?.productId && autoExplainEnabled.value) {
@@ -201,7 +207,7 @@ async function readCookiesFromFile(browserId: string): Promise<Cookie[]> {
 // 获取直播间标题配置
 function getTitleSettings(): { titles: string[] } {
   try {
-    const saved = localStorage.getItem(TITLE_SETTINGS_KEY)
+    const saved = localStorage.getItem(STORAGE_KEYS.TITLE_SETTINGS)
     if (saved) {
       return JSON.parse(saved)
     }
@@ -237,7 +243,7 @@ async function addSkusToBag(liveId: number, cookies: Cookie[]): Promise<number> 
   }
 
   let totalSuccess = 0
-  const maxBatchSize = 150
+  const maxBatchSize = DEFAULTS.MAX_BATCH_SIZE
 
   // 按文件顺序处理
   for (let fileIndex = 0; fileIndex < productFiles.length; fileIndex++) {
@@ -474,7 +480,7 @@ async function handleCreateLiveRoom() {
       canExplain: 1,
       preVideoType: 0,
       desc: '',
-      welcome: '欢迎来到我的直播间，喜欢我可以点一下关注哦~',
+      welcome: AI_PROMPTS.LIVE_WELCOME,
       channelNum: '',
       pcVersion: 1,
     }
@@ -555,6 +561,9 @@ function formatScriptContent(title: string, content: string): string {
     .replace(/^.*?：\s*/g, '')
     .trim()
 
+  // 先把多个连续空行替换为单个空行
+  cleanContent = cleanContent.replace(/\n{3,}/g, '\n\n')
+
   // 每4个句号后换行（中文句号和英文句号都算）
   let periodCount = 0
   let formattedContent = ''
@@ -569,18 +578,18 @@ function formatScriptContent(title: string, content: string): string {
     }
   }
 
-  return `${title}\n\n${formattedContent.trim()}`
+  // 最终再清理一次多余空行
+  formattedContent = formattedContent.replace(/\n{3,}/g, '\n\n').trim()
+
+  return `${title}\n\n${formattedContent}`
 }
 
 // 生成单个商品话术（模板方式，作为 AI 生成失败时的备选）
 function generateProductScript(product: LiveProduct, index: number): string {
   const title = `【${index + 1}】${product.title}`
-  const templates = [
-    '这款商品非常推荐给大家！品质有保障，价格也很实惠。喜欢的朋友们可以点击下方链接下单哦~',
-    '家人们看过来！这款商品是我们精心挑选的，性价比超高！数量有限，先到先得~',
-    '宝子们，这款商品真的太棒了！我自己也在用，强烈推荐给大家！赶紧下单吧~',
-  ]
-  const content = templates[index % templates.length] ?? templates[0]!
+  const content =
+    AI_PROMPTS.SCRIPT_TEMPLATES[index % AI_PROMPTS.SCRIPT_TEMPLATES.length] ??
+    AI_PROMPTS.SCRIPT_TEMPLATES[0]!
   return formatScriptContent(title, content)
 }
 
@@ -591,37 +600,29 @@ async function generateProductScriptByAI(product: LiveProduct, index: number): P
     return generateProductScript(product, index)
   }
 
-  const systemPrompt = settings.prompt || '你是一个专业的直播带货主播，请根据商品信息生成吸引人的直播话术。'
-  const userPrompt = `这是商品的基本信息：
-商品名称：${product.title}
-商品价格：${product.price || '优惠价'}
-店铺名称：${product.shopName || ''}
+  const systemPrompt = settings.prompt || AI_PROMPTS.SCRIPT_SYSTEM
+  const userPrompt = generateScriptUserPrompt(
+    product.title,
+    product.price || '优惠价',
+    product.shopName || '',
+  )
 
-我要做直播商品讲解，你帮我写一个商品的口播词，400字左右，生成我直接可以用的，不用写框架，不要使用表情和颜文字，写成一段就行，别留那么多空行，使用中文。不要使用最多，第一，必须，顶级，国家级等极限词，不要使用美白，抗皱违禁词。类似这样，
-
-家人们，今天给大家介绍一款超棒的手机 —— 荣耀 Play9T！
-外观上，荣耀 Play9T 简直就是 “颜值担当”。它的机身线条流畅，轻薄又便携，拿在手里十分舒适。时尚的配色方案，每一种都独具魅力，不管你是走简约风还是个性风，都能选到合心意的颜色。
-性能方面，荣耀 Play9T 也毫不逊色。搭载了强劲的处理器，运行速度超快，多任务处理轻松自如。无论是刷短视频、玩游戏，还是日常办公，它都能高效完成，让你告别卡顿和等待的烦恼。
-它的拍照功能同样出色。高清的摄像头，能够捕捉每一个精彩瞬间。白天拍摄，色彩鲜艳、画面清晰；夜晚拍摄，也能有效减少噪点，拍出质感满满的照片。有了它，你随时都能记录生活中的美好。
-再说说续航，荣耀 Play9T 配备了大容量电池，续航能力超强。就算你一整天都在使用手机，也不用担心电量不足。而且它还支持快速充电，短时间就能补充大量电量，让你没有后顾之忧。
-这么一款外观美、性能强、拍照好、续航久的荣耀 Play9T，你还在等什么呢？赶紧入手一台吧！
-`
 
   try {
-    const response = await fetch('https://api.siliconflow.cn/v1/chat/completions', {
+    const response = await fetch(API_ENDPOINTS.CHAT_COMPLETIONS, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${settings.apiKey}`,
       },
       body: JSON.stringify({
-        model: settings.model || 'Qwen/Qwen2-7B-Instruct',
+        model: settings.model || DEFAULT_AI_MODEL,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
-        max_tokens: 500,
-        temperature: 0.7,
+        max_tokens: AI_REQUEST_DEFAULTS.MAX_TOKENS,
+        temperature: AI_REQUEST_DEFAULTS.TEMPERATURE,
       }),
     })
 
@@ -784,7 +785,6 @@ async function getCurrentCookies(): Promise<Cookie[]> {
 
 // 讲解操作的最后执行时间（用于防止操作过快）
 let lastExplainActionTime = 0
-const EXPLAIN_ACTION_DELAY = 1500 // 讲解操作间隔（毫秒）
 
 // 开始讲解商品
 async function handleStartExplain(productId: string) {
@@ -795,7 +795,7 @@ async function handleStartExplain(productId: string) {
 
   // 检查操作间隔
   const now = Date.now()
-  if (now - lastExplainActionTime < EXPLAIN_ACTION_DELAY) {
+  if (now - lastExplainActionTime < LIVE_CONFIG.EXPLAIN_ACTION_DELAY) {
     toast.warning('操作过快，请稍后再试')
     return
   }
@@ -848,7 +848,7 @@ async function handleEndExplain(productId: string) {
 
   // 检查操作间隔
   const now = Date.now()
-  if (now - lastExplainActionTime < EXPLAIN_ACTION_DELAY) {
+  if (now - lastExplainActionTime < LIVE_CONFIG.EXPLAIN_ACTION_DELAY) {
     toast.warning('操作过快，请稍后再试')
     return
   }
