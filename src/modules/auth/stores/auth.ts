@@ -13,6 +13,9 @@ const PRODUCT_ID = 'exe-explain'
 // 本地存储 key
 const STORAGE_KEY = 'auth_info'
 
+// 检查间隔（1 小时）
+const CHECK_INTERVAL = 60 * 60 * 1000
+
 // 授权信息类型
 export interface AuthInfo {
   cardCode: string
@@ -126,6 +129,7 @@ export const useAuthStore = defineStore('auth', () => {
           maxMachineCount: data.max_machine_count,
         }
         saveToStorage()
+        startAuthCheck() // 登录成功后启动定时检查
         toast.success(`登录成功！有效期至：${data.expire_time_text || '永久'}`)
         return true
       } else {
@@ -145,10 +149,80 @@ export const useAuthStore = defineStore('auth', () => {
   function logout() {
     authInfo.value = null
     localStorage.removeItem(STORAGE_KEY)
+    stopAuthCheck()
   }
 
-  // 初始化时加载
-  loadFromStorage()
+  // 检查登录状态（向服务器验证卡密是否仍然有效）
+  async function checkAuthStatus(): Promise<boolean> {
+    if (!authInfo.value) return false
+
+    try {
+      const machine = await getMachineCode()
+      const body = JSON.stringify({
+        key: authInfo.value.cardCode,
+        product_id: PRODUCT_ID,
+        machineCode: machine,
+        id: authInfo.value.userId,
+      })
+
+      const responseText = await invoke<string>('http_post', { url: VERIFY_API, body })
+      const result = JSON.parse(responseText)
+      console.log('[Auth] 状态检查响应:', result)
+
+      if (result.code === 0) {
+        // 更新授权信息
+        const data = result.data
+        authInfo.value = {
+          ...authInfo.value,
+          expireTime: data.expire_time,
+          expireTimeText: data.expire_time_text,
+          remainingTimes: data.remaining_times,
+        }
+        saveToStorage()
+        return true
+      } else {
+        // 卡密已失效，强制退出
+        toast.error(`授权已失效：${result.msg || '请重新登录'}`)
+        logout()
+        return false
+      }
+    } catch (e) {
+      console.error('[Auth] 状态检查失败:', e)
+      // 网络错误时检查本地过期时间
+      if (authInfo.value?.hasTimeLimit && authInfo.value.expireTime < Date.now()) {
+        toast.error('授权已过期，请重新登录')
+        logout()
+        return false
+      }
+      return true // 网络错误但本地未过期，暂时允许使用
+    }
+  }
+
+  // 定时检查器
+  let checkTimer: ReturnType<typeof setInterval> | null = null
+
+  function startAuthCheck() {
+    if (checkTimer) return
+    // 立即检查一次
+    checkAuthStatus()
+    // 每小时检查一次
+    checkTimer = setInterval(() => {
+      checkAuthStatus()
+    }, CHECK_INTERVAL)
+  }
+
+  function stopAuthCheck() {
+    if (checkTimer) {
+      clearInterval(checkTimer)
+      checkTimer = null
+    }
+  }
+
+  // 初始化时加载并启动检查
+  const loaded = loadFromStorage()
+  if (loaded) {
+    startAuthCheck()
+  }
 
   return {
     authInfo,
@@ -161,5 +235,8 @@ export const useAuthStore = defineStore('auth', () => {
     logout,
     getMachineCode,
     loadFromStorage,
+    checkAuthStatus,
+    startAuthCheck,
+    stopAuthCheck,
   }
 })
