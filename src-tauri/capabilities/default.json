@@ -11,6 +11,14 @@
     "core:window:allow-destroy",
     "opener:default",
     "dialog:default",
-    "log:default"
+    "log:default",
+    "fs:default",
+    "fs:allow-copy-file",
+    "fs:allow-read",
+    "fs:allow-write",
+    {
+      "identifier": "fs:allow-write-file",
+      "allow": [{ "path": "$DESKTOP/**" }, { "path": "$DOCUMENT/**" }, { "path": "$DOWNLOAD/**" }]
+    }
   ]
 }

@@ -51,6 +51,15 @@ export interface ProductFileResult {
   error?: string // 错误信息
 }
 
+// 商品文件信息
+export interface ProductFile {
+  id: string // 唯一标识
+  name: string // 文件名
+  productIds: string[] // 去重后的商品 ID 列表
+  totalCount: number // 原始数据条数
+  uniqueCount: number // 去重后的数量
+}
+
 // 图片设置
 export interface ImageSettings {
   width: number // 图片宽度

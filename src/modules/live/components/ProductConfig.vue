@@ -1,48 +1,93 @@
 <script setup lang="ts">
 /**
- * 商品配置组件 - 支持 xlsx 文件导入
+ * 商品配置组件 - 支持多个 xlsx 文件导入、拖动排序
  */
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import * as XLSX from 'xlsx'
-import type { ProductItem, ProductFileResult } from '../types'
+import { openPath } from '@tauri-apps/plugin-opener'
+import { save } from '@tauri-apps/plugin-dialog'
+import { desktopDir } from '@tauri-apps/api/path'
+import { writeFile } from '@tauri-apps/plugin-fs'
+import type { ProductFile } from '../types'
 import { useLiveStore } from '../stores/live'
 
 interface Props {
-  products: ProductItem[]
   expanded?: boolean
 }
 
 interface Emits {
-  (e: 'update', products: ProductItem[]): void
-  (e: 'import', file: File): void
-  (e: 'generate-titles', productId: string): void
   (e: 'toggle'): void
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   expanded: false,
 })
 const emit = defineEmits<Emits>()
 
 const liveStore = useLiveStore()
 const fileInput = ref<HTMLInputElement | null>(null)
-const expandedProductId = ref<string | null>(null)
-const parseResult = ref<ProductFileResult | null>(null)
 
-// 计算去重后的商品数量
-const uniqueProductCount = computed(() => {
-  return parseResult.value?.uniqueCount ?? props.products.length
-})
+// 商品文件列表
+const productFiles = ref<ProductFile[]>([])
+
+// 拖拽状态
+const dragIndex = ref<number | null>(null)
+const dragOverIndex = ref<number | null>(null)
 
 function triggerFileSelect() {
   fileInput.value?.click()
 }
 
 /**
+ * 生成模板 Excel 文件
+ */
+function generateTemplateWorkbook(): Uint8Array {
+  const workbook = XLSX.utils.book_new()
+  const data = [['ID'], ['10001234567'], ['10001234568'], ['10001234569']]
+  const worksheet = XLSX.utils.aoa_to_sheet(data)
+  worksheet['!cols'] = [{ wch: 15 }]
+  XLSX.utils.book_append_sheet(workbook, worksheet, '商品列表')
+  return new Uint8Array(XLSX.write(workbook, { type: 'array', bookType: 'xlsx' }))
+}
+
+/**
+ * 下载模板文件
+ */
+async function downloadTemplate() {
+  try {
+    // 获取桌面路径作为默认保存位置
+    const desktop = await desktopDir()
+
+    // 打开保存对话框
+    const savePath = await save({
+      defaultPath: `${desktop}/商品模板.xlsx`,
+      filters: [{ name: 'Excel 文件', extensions: ['xlsx'] }],
+    })
+
+    if (!savePath) {
+      return // 用户取消
+    }
+
+    // 生成模板文件并写入
+    const templateData = generateTemplateWorkbook()
+    await writeFile(savePath, templateData)
+
+    liveStore.addLog('success', `模板已保存到: ${savePath}`)
+
+    // 用系统默认程序打开文件
+    await openPath(savePath)
+  } catch (error) {
+    liveStore.addLog('error', `下载模板失败: ${error instanceof Error ? error.message : '未知错误'}`)
+  }
+}
+
+/**
  * 解析 xlsx 文件
  */
-async function parseXlsxFile(file: File): Promise<ProductFileResult> {
+async function parseXlsxFile(
+  file: File,
+): Promise<{ success: boolean; productIds: string[]; totalCount: number; uniqueCount: number; error?: string }> {
   return new Promise((resolve) => {
     const reader = new FileReader()
 
@@ -67,24 +112,47 @@ async function parseXlsxFile(file: File): Promise<ProductFileResult> {
           return
         }
 
+        // 检查第一列标题是否为 ID
         const headers = jsonData[0] as unknown[]
         if (!headers || headers.length === 0 || String(headers[0]).toUpperCase() !== 'ID') {
-          resolve({ success: false, productIds: [], totalCount: 0, uniqueCount: 0, error: '第一列标题必须是 ID' })
+          resolve({
+            success: false,
+            productIds: [],
+            totalCount: 0,
+            uniqueCount: 0,
+            error: '第一列标题必须是 ID',
+          })
           return
         }
 
+        // 提取所有 ID（去除空行）
         const allIds: string[] = []
         for (let i = 1; i < jsonData.length; i++) {
           const row = jsonData[i] as unknown[]
           if (row && row[0] !== undefined && row[0] !== null && row[0] !== '') {
-            allIds.push(String(row[0]).trim())
+            const id = String(row[0]).trim()
+            if (id.length > 0) {
+              allIds.push(id)
+            }
           }
         }
 
-        const uniqueIds = [...new Set(allIds.filter((id) => id.length > 0))]
-        resolve({ success: true, productIds: uniqueIds, totalCount: allIds.length, uniqueCount: uniqueIds.length })
+        // 去重
+        const uniqueIds = [...new Set(allIds)]
+        resolve({
+          success: true,
+          productIds: uniqueIds,
+          totalCount: allIds.length,
+          uniqueCount: uniqueIds.length,
+        })
       } catch (error) {
-        resolve({ success: false, productIds: [], totalCount: 0, uniqueCount: 0, error: `解析失败: ${error instanceof Error ? error.message : '未知错误'}` })
+        resolve({
+          success: false,
+          productIds: [],
+          totalCount: 0,
+          uniqueCount: 0,
+          error: `解析失败: ${error instanceof Error ? error.message : '未知错误'}`,
+        })
       }
     }
 
@@ -98,69 +166,89 @@ async function parseXlsxFile(file: File): Promise<ProductFileResult> {
 
 async function handleFileChange(event: Event) {
   const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
-  if (!file) return
+  const files = target.files
+  if (!files || files.length === 0) return
 
-  if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
-    liveStore.addLog('error', `文件格式错误: 仅支持 xlsx 格式`)
-    target.value = ''
-    return
+  for (const file of Array.from(files)) {
+    // 检查文件格式
+    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+      liveStore.addLog('error', `文件格式错误: ${file.name}，仅支持 xlsx 格式`)
+      continue
+    }
+
+    // 检查是否已存在同名文件
+    if (productFiles.value.some((f) => f.name === file.name)) {
+      liveStore.addLog('warn', `文件已存在: ${file.name}`)
+      continue
+    }
+
+    liveStore.addLog('info', `开始解析文件: ${file.name}`)
+    const result = await parseXlsxFile(file)
+
+    if (!result.success) {
+      liveStore.addLog('error', `${file.name} 解析失败: ${result.error}`)
+      continue
+    }
+
+    // 添加到文件列表
+    const productFile: ProductFile = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      name: file.name,
+      productIds: result.productIds,
+      totalCount: result.totalCount,
+      uniqueCount: result.uniqueCount,
+    }
+    productFiles.value.push(productFile)
+    liveStore.addLog('success', `${file.name}: 共 ${result.totalCount} 条，去重后 ${result.uniqueCount} 条`)
   }
 
-  liveStore.addLog('info', `开始解析文件: ${file.name}`)
-  const result = await parseXlsxFile(file)
-  parseResult.value = result
-
-  if (!result.success) {
-    liveStore.addLog('error', `解析失败: ${result.error}`)
-    target.value = ''
-    return
-  }
-
-  liveStore.addLog('success', `解析成功: 共 ${result.totalCount} 条数据，去重后 ${result.uniqueCount} 条`)
-  const products: ProductItem[] = result.productIds.map((id) => ({ id, name: `商品 ${id}`, quantity: 1, titles: [''] }))
-  emit('update', products)
+  // 清空 input
   target.value = ''
 }
 
-function updateQuantity(id: string, quantity: number) {
-  const updated = props.products.map((p) => (p.id === id ? { ...p, quantity: Math.max(1, quantity) } : p))
-  emit('update', updated)
+function removeFile(id: string) {
+  const file = productFiles.value.find((f) => f.id === id)
+  if (file) {
+    productFiles.value = productFiles.value.filter((f) => f.id !== id)
+    liveStore.addLog('info', `已移除文件: ${file.name}`)
+  }
 }
 
-function updateTitle(id: string, index: number, value: string) {
-  const updated = props.products.map((p) => {
-    if (p.id === id) {
-      const titles = [...p.titles]
-      titles[index] = value
-      return { ...p, titles }
-    }
-    return p
-  })
-  emit('update', updated)
+// 拖拽排序
+function handleDragStart(index: number) {
+  dragIndex.value = index
 }
 
-function addTitle(id: string) {
-  const updated = props.products.map((p) => (p.id === id ? { ...p, titles: [...p.titles, ''] } : p))
-  emit('update', updated)
+function handleDragOver(event: DragEvent, index: number) {
+  event.preventDefault()
+  dragOverIndex.value = index
 }
 
-function removeTitle(id: string, index: number) {
-  const updated = props.products.map((p) => {
-    if (p.id === id && p.titles.length > 1) {
-      return { ...p, titles: p.titles.filter((_, i) => i !== index) }
-    }
-    return p
-  })
-  emit('update', updated)
+function handleDragLeave() {
+  dragOverIndex.value = null
 }
 
-function toggleProduct(id: string) {
-  expandedProductId.value = expandedProductId.value === id ? null : id
+function handleDrop(index: number) {
+  if (dragIndex.value === null || dragIndex.value === index) {
+    dragIndex.value = null
+    dragOverIndex.value = null
+    return
+  }
+
+  const files = [...productFiles.value]
+  const draggedItem = files.splice(dragIndex.value, 1)[0]
+  if (draggedItem) {
+    files.splice(index, 0, draggedItem)
+    productFiles.value = files
+  }
+
+  dragIndex.value = null
+  dragOverIndex.value = null
 }
 
-function handleGenerateTitles(id: string) {
-  emit('generate-titles', id)
+function handleDragEnd() {
+  dragIndex.value = null
+  dragOverIndex.value = null
 }
 </script>
 
@@ -169,38 +257,73 @@ function handleGenerateTitles(id: string) {
     <div class="collapse-title py-2 px-3 pr-10 min-h-0 flex items-center gap-2 cursor-pointer" @click="emit('toggle')">
       <Icon icon="mdi:package-variant" class="text-lg" />
       <span class="text-sm font-medium flex-1">商品配置</span>
-      <span v-if="uniqueProductCount > 0" class="badge badge-primary badge-sm">{{ uniqueProductCount }}</span>
-      <button class="btn btn-primary btn-xs" @click.stop="triggerFileSelect">
-        <Icon icon="mdi:upload" />
-        导入
-      </button>
-      <input ref="fileInput" type="file" accept=".xlsx,.xls" class="hidden" @change="handleFileChange" />
     </div>
+
     <div v-if="expanded" class="px-3 pb-2">
-      <div v-if="products.length === 0" class="text-center py-2 text-base-content/60 text-xs">
+      <!-- 操作按钮 -->
+      <div class="flex justify-end gap-2 mb-2">
+        <button class="btn btn-ghost btn-sm" @click="downloadTemplate">
+          <Icon icon="mdi:download" />
+          下载模板
+        </button>
+        <button class="btn btn-primary btn-sm" @click="triggerFileSelect">
+          <Icon icon="mdi:upload" />
+          导入文件
+        </button>
+        <input
+          ref="fileInput"
+          type="file"
+          accept=".xlsx,.xls"
+          multiple
+          class="hidden"
+          @change="handleFileChange"
+        />
+      </div>
+
+      <!-- 无文件提示 -->
+      <div v-if="productFiles.length === 0" class="text-center py-3 text-base-content/60 text-xs">
         暂无商品，请导入 xlsx 商品文件（第一列标题必须是 ID）
       </div>
-      <div v-else class="space-y-1 max-h-40 overflow-y-auto">
-        <div v-for="product in products" :key="product.id" class="border border-base-300 rounded">
-          <div class="flex items-center gap-2 p-2 cursor-pointer text-sm" @click="toggleProduct(product.id)">
-            <Icon icon="mdi:chevron-right" :class="{ 'rotate-90': expandedProductId === product.id }" />
-            <span class="flex-1 truncate">{{ product.id }}</span>
-            <input type="number" :value="product.quantity" min="1" class="input input-bordered input-xs w-14 text-center" @click.stop @input="updateQuantity(product.id, Number(($event.target as HTMLInputElement).value))" />
-          </div>
-          <div v-if="expandedProductId === product.id" class="p-2 pt-0 space-y-1">
-            <div class="flex items-center justify-between">
-              <span class="text-xs">标题</span>
-              <div class="flex gap-1">
-                <button class="btn btn-ghost btn-xs" @click="handleGenerateTitles(product.id)"><Icon icon="mdi:robot" /></button>
-                <button class="btn btn-ghost btn-xs" @click="addTitle(product.id)"><Icon icon="mdi:plus" /></button>
-              </div>
-            </div>
-            <div v-for="(title, index) in product.titles" :key="index" class="flex gap-1">
-              <input type="text" :value="title" class="input input-bordered input-xs flex-1" @input="updateTitle(product.id, index, ($event.target as HTMLInputElement).value)" />
-              <button v-if="product.titles.length > 1" class="btn btn-ghost btn-xs text-error" @click="removeTitle(product.id, index)"><Icon icon="mdi:close" /></button>
-            </div>
-          </div>
+
+      <!-- 文件列表 -->
+      <div v-else class="space-y-1 max-h-48 overflow-y-auto">
+        <div
+          v-for="(file, index) in productFiles"
+          :key="file.id"
+          class="flex items-center gap-2 p-2 bg-base-200 rounded cursor-move transition-all"
+          :class="{
+            'opacity-50': dragIndex === index,
+            'border-2 border-primary border-dashed': dragOverIndex === index && dragIndex !== index,
+          }"
+          draggable="true"
+          @dragstart="handleDragStart(index)"
+          @dragover="handleDragOver($event, index)"
+          @dragleave="handleDragLeave"
+          @drop="handleDrop(index)"
+          @dragend="handleDragEnd"
+        >
+          <!-- 拖拽手柄 -->
+          <Icon icon="mdi:drag" class="text-base-content/40" />
+
+          <!-- 序号 -->
+          <span class="badge badge-ghost badge-sm w-6">{{ index + 1 }}</span>
+
+          <!-- 文件名 -->
+          <span class="flex-1 text-sm truncate" :title="file.name">{{ file.name }}</span>
+
+          <!-- 商品数量 -->
+          <span class="badge badge-outline badge-sm">{{ file.uniqueCount }} 条</span>
+
+          <!-- 删除按钮 -->
+          <button class="btn btn-ghost btn-xs text-error" @click="removeFile(file.id)">
+            <Icon icon="mdi:close" />
+          </button>
         </div>
+      </div>
+
+      <!-- 汇总信息 -->
+      <div v-if="productFiles.length > 1" class="mt-2 pt-2 border-t border-base-300 text-xs text-base-content/60">
+        共 {{ productFiles.length }} 个文件
       </div>
     </div>
   </div>

@@ -35,6 +35,7 @@
       "icons/icon.ico"
     ],
     "licenseFile": "LICENSE.txt",
+    "resources": ["../public/商品模板.xlsx"],
     "windows": {
       "nsis": {
         "installMode": "currentUser",

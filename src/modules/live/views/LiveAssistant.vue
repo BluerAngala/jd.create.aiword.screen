@@ -14,7 +14,7 @@ import LiveParams from '../components/LiveParams.vue'
 import CountdownTimer from '../components/CountdownTimer.vue'
 import AIScriptPanel from '../components/AIScriptPanel.vue'
 import AISettingsModal from '../components/AISettingsModal.vue'
-import type { BrowserInfo, ProductItem, ImageSettings, LiveParameters, AIScriptSettings } from '../types'
+import type { BrowserInfo, ImageSettings, LiveParameters, AIScriptSettings } from '../types'
 
 const store = useLiveStore()
 
@@ -54,30 +54,7 @@ function handleBrowsersUpdate(browsers: BrowserInfo[]) {
   store.setBrowsers(browsers)
 }
 
-// 处理商品更新
-function handleProductUpdate(products: ProductItem[]) {
-  store.setProducts(products)
-}
 
-// 处理商品导入（由组件内部处理 xlsx 解析）
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function handleProductImport(_file: File) {
-  // 组件内部会自动处理 xlsx 解析逻辑
-}
-
-// AI 生成标题
-function handleGenerateTitles(productId: string) {
-  store.addLog('info', `正在为商品 ${productId} 生成 AI 标题...`)
-  setTimeout(() => {
-    const product = store.products.find((p) => p.id === productId)
-    if (product) {
-      store.updateProduct(productId, {
-        titles: [...product.titles, `AI 生成标题 ${Date.now()}`],
-      })
-      store.addLog('success', 'AI 标题生成完成')
-    }
-  }, 1000)
-}
 
 // 处理图片配置更新
 function handleImageConfigUpdate(config: ImageSettings) {
@@ -156,14 +133,7 @@ function handleCountdownComplete() {
           @update:browsers="handleBrowsersUpdate"
           @toggle="togglePanel('browser')"
         />
-        <ProductConfig
-          :products="store.products"
-          :expanded="expandedPanel === 'product'"
-          @update="handleProductUpdate"
-          @import="handleProductImport"
-          @generate-titles="handleGenerateTitles"
-          @toggle="togglePanel('product')"
-        />
+        <ProductConfig :expanded="expandedPanel === 'product'" @toggle="togglePanel('product')" />
         <ImageConfig
           :config="store.imageConfig"
           :expanded="expandedPanel === 'image'"
