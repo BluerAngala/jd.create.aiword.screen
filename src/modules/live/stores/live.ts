@@ -65,6 +65,7 @@ export const useLiveStore = defineStore('live', () => {
   const isLiveStarted = ref(false)
   const countdownTargetTime = ref<Date | null>(null)
   const countdownRunning = ref(false)
+  const liveId = ref<number | null>(null)
 
   // AI 话术
   const aiScripts = ref<AIScript[]>([])
@@ -207,8 +208,11 @@ export const useLiveStore = defineStore('live', () => {
 
 
   // 直播间状态方法
-  function setLiveRoomCreated(created: boolean) {
+  function setLiveRoomCreated(created: boolean, id?: number) {
     isLiveRoomCreated.value = created
+    if (id !== undefined) {
+      liveId.value = id
+    }
   }
 
   function setLiveStarted(started: boolean) {
@@ -261,6 +265,7 @@ export const useLiveStore = defineStore('live', () => {
     logs,
     isLiveRoomCreated,
     isLiveStarted,
+    liveId,
     countdownTargetTime,
     countdownRunning,
     aiScripts,

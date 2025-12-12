@@ -144,10 +144,33 @@ export interface RecentLiveRoom {
 
 // 创建直播间请求
 export interface CreateLiveRequest {
-  title: string
-  cover_url?: string
-  start_time?: string
-  end_time?: string
+  title: string                    // 直播间标题
+  indexImage: string               // 封面图（4:3）
+  resizeIndexImage: string         // 封面图（2:1）
+  squareIndexImage: string         // 封面图（1:1）
+  portraitIndexImage: string       // 封面图（3:4）
+  type: number                     // 直播类型，固定 69
+  publishTime: string              // 发布时间，格式：YYYY-MM-DD HH:mm:ss
+  screen: number                   // 横竖屏，0=竖屏
+  test: number                     // 是否测试，0=否
+  locationDetail: string | null    // 位置详情
+  canExplain: number               // 是否可讲解，1=是
+  preVideoType: number             // 预告视频类型，0=无
+  desc: string                     // 描述
+  welcome: string                  // 欢迎语
+  channelNum: string               // 频道号
+  pcVersion: number                // PC 版本，固定 1
+}
+
+// 创建直播间响应
+export interface CreateLiveResponse {
+  success: boolean
+  code: number
+  subcode?: number
+  successMsg?: string
+  errorMsg?: string
+  liveId?: number
+  ddMsg?: string
 }
 
 // 直播实时数据

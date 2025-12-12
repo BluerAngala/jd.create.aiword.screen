@@ -31,8 +31,8 @@ export async function getRecentLiveRooms(cookies: Cookie[]): Promise<RecentLiveR
 export async function createLiveRoom(
   cookies: Cookie[],
   request: CreateLiveRequest,
-): Promise<string> {
-  return invoke<string>('create_live_room', { cookies, request })
+): Promise<number> {
+  return invoke<number>('create_live_room', { cookies, request })
 }
 
 /**

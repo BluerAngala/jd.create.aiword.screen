@@ -67,9 +67,22 @@ pub struct RecentUsedIndexData {
 #[serde(rename_all = "camelCase")]
 pub struct CreateLiveRequest {
     pub title: String,
-    pub cover_url: Option<String>,
-    pub start_time: Option<String>,
-    pub end_time: Option<String>,
+    pub index_image: String,                    // 封面图（4:3）
+    pub resize_index_image: String,             // 封面图（2:1）
+    pub square_index_image: String,             // 封面图（1:1）
+    pub portrait_index_image: String,           // 封面图（3:4）
+    #[serde(rename = "type")]
+    pub live_type: i32,                         // 直播类型，固定 69
+    pub publish_time: String,                   // 发布时间
+    pub screen: i32,                            // 横竖屏，0=竖屏
+    pub test: i32,                              // 是否测试，0=否
+    pub location_detail: Option<String>,        // 位置详情
+    pub can_explain: i32,                       // 是否可讲解，1=是
+    pub pre_video_type: i32,                    // 预告视频类型，0=无
+    pub desc: String,                           // 描述
+    pub welcome: String,                        // 欢迎语
+    pub channel_num: String,                    // 频道号
+    pub pc_version: i32,                        // PC 版本，固定 1
 }
 
 /// 创建直播间响应
@@ -78,8 +91,11 @@ pub struct CreateLiveRequest {
 pub struct CreateLiveResponse {
     pub success: bool,
     pub code: i32,
+    pub subcode: Option<i32>,
+    pub success_msg: Option<String>,
     pub error_msg: Option<String>,
-    pub live_id: Option<String>,
+    pub live_id: Option<i64>,
+    pub dd_msg: Option<String>,
 }
 
 // ============ 商品相关 ============
@@ -304,19 +320,43 @@ pub async fn get_recent_live_rooms(cookies: Vec<Cookie>) -> Result<Vec<RecentLiv
 }
 
 
+/// 构建创建直播间专用请求头
+fn build_create_live_headers(cookie_str: &str) -> reqwest::header::HeaderMap {
+    let mut headers = reqwest::header::HeaderMap::new();
+    if let Ok(value) = cookie_str.parse() {
+        headers.insert(reqwest::header::COOKIE, value);
+    }
+    headers.insert(
+        reqwest::header::USER_AGENT,
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36 Edg/134.0.0.0"
+            .parse()
+            .unwrap(),
+    );
+    headers.insert(
+        reqwest::header::REFERER,
+        "https://jlive.jd.com/".parse().unwrap(),
+    );
+    headers.insert(
+        reqwest::header::CONTENT_TYPE,
+        "application/json; charset=UTF-8".parse().unwrap(),
+    );
+    headers
+}
+
 /// 创建直播间
 #[tauri::command]
 pub async fn create_live_room(
     cookies: Vec<Cookie>,
     request: CreateLiveRequest,
-) -> Result<String, String> {
+) -> Result<i64, String> {
     info!("[创建直播间] 开始创建直播间: {}", request.title);
+    info!("[创建直播间] 发布时间: {}", request.publish_time);
 
     let cookie_str = cookies_to_string(&cookies);
     let url = "https://drlives.jd.com/live/live-create";
 
     let client = reqwest::Client::new();
-    let headers = build_headers(&cookie_str);
+    let headers = build_create_live_headers(&cookie_str);
 
     let response = client
         .post(url)
@@ -338,6 +378,7 @@ pub async fn create_live_room(
 
     if data.success {
         if let Some(live_id) = data.live_id {
+            info!("[创建直播间] 创建成功，直播间 ID: {}", live_id);
             return Ok(live_id);
         }
     }

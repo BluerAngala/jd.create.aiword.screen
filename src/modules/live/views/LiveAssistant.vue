@@ -16,7 +16,15 @@ import LiveParams from '../components/LiveParams.vue'
 import CountdownTimer from '../components/CountdownTimer.vue'
 import AIScriptPanel from '../components/AIScriptPanel.vue'
 import AISettingsModal from '../components/AISettingsModal.vue'
-import type { BrowserInfo, ImageSettings, LiveParameters, AIScriptSettings, Cookie } from '../types'
+import type {
+  BrowserInfo,
+  ImageSettings,
+  LiveParameters,
+  AIScriptSettings,
+  Cookie,
+  CreateLiveRequest,
+} from '../types'
+import { createLiveRoom } from '../api/jd'
 
 const store = useLiveStore()
 const toast = useToast()
@@ -99,9 +107,23 @@ function getTitleSettings(): { titles: string[] } {
   return { titles: [] }
 }
 
+// 封面图片类型
+interface CoverImage {
+  fourToThree?: string
+  twoToOne?: string
+  oneToOne?: string
+  threeToFour?: string
+}
+
+// 格式化日期为 YYYY-MM-DD HH:mm:ss
+function formatDateTime(date: Date): string {
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+}
+
 // 新建直播间
 async function handleCreateLiveRoom() {
-  store.addLog('info', '========== 开始创建直播间检查 ==========')
+  store.addLog('info', '========== 开始创建直播间 ==========')
 
   // 1. 检查是否已选中浏览器并且登录成功
   store.addLog('info', '【检查1】检查浏览器选择和登录状态...')
@@ -133,7 +155,7 @@ async function handleCreateLiveRoom() {
   }
   // 随机获取一条标题
   const randomIndex = Math.floor(Math.random() * titleSettings.titles.length)
-  const randomTitle = titleSettings.titles[randomIndex]
+  const randomTitle = titleSettings.titles[randomIndex] ?? '直播间'
   store.addLog('success', `【检查2】✓ 已配置 ${titleSettings.titles.length} 条标题，随机选中: "${randomTitle}"`)
 
   // 3. 检查商品文件配置
@@ -158,27 +180,87 @@ async function handleCreateLiveRoom() {
     `【检查3】✓ 已配置 ${productFiles.length} 个商品文件，共 ${totalProducts} 条有效商品`,
   )
 
-  // 4. 调用京东获取封面图片接口
-  store.addLog('info', '【检查4】正在检查封面图片...')
+  // 4. 获取 Cookie
+  store.addLog('info', '【检查4】正在获取 Cookie...')
+  let cookies: Cookie[] = []
   try {
-    const cookies = await readCookiesFromFile(selectedBrowser.id)
+    cookies = await readCookiesFromFile(selectedBrowser.id)
     if (cookies.length === 0) {
       const msg = '无法获取 Cookie，请重新选择浏览器'
       store.addLog('error', `【检查4】❌ ${msg}`)
       toast.error(msg)
       return
     }
-    const coverResult = await invoke<unknown[]>('get_cover_images', { cookies })
-    store.addLog('success', `【检查4】✓ 获取到 ${Array.isArray(coverResult) ? coverResult.length : 0} 张封面图片`)
+    store.addLog('success', `【检查4】✓ 获取到 ${cookies.length} 个 Cookie`)
   } catch (error) {
-    const msg = `获取封面图片失败: ${error}`
+    const msg = `获取 Cookie 失败: ${error}`
     store.addLog('error', `【检查4】❌ ${msg}`)
     toast.error(msg)
     return
   }
 
-  store.addLog('success', '========== 所有检查通过 ==========')
-  toast.success('所有检查通过')
+  // 5. 获取封面图片
+  store.addLog('info', '【检查5】正在获取封面图片...')
+  let coverImages: CoverImage[] = []
+  try {
+    coverImages = await invoke<CoverImage[]>('get_cover_images', { cookies })
+    if (!coverImages || coverImages.length === 0) {
+      const msg = '没有可用的封面图片，请先上传封面图片'
+      store.addLog('error', `【检查5】❌ ${msg}`)
+      toast.error(msg)
+      return
+    }
+    store.addLog('success', `【检查5】✓ 获取到 ${coverImages.length} 张封面图片`)
+  } catch (error) {
+    const msg = `获取封面图片失败: ${error}`
+    store.addLog('error', `【检查5】❌ ${msg}`)
+    toast.error(msg)
+    return
+  }
+
+  // 6. 创建直播间
+  store.addLog('info', '【步骤6】正在创建直播间...')
+  try {
+    // 随机选择一张封面图片
+    const coverIndex = Math.floor(Math.random() * coverImages.length)
+    const cover = coverImages[coverIndex] as CoverImage
+
+    // 构建请求参数
+    const publishTime = formatDateTime(store.liveParams.startTime)
+    const request: CreateLiveRequest = {
+      title: randomTitle,
+      indexImage: cover?.fourToThree ?? '',
+      resizeIndexImage: cover?.twoToOne ?? '',
+      squareIndexImage: cover?.oneToOne ?? '',
+      portraitIndexImage: cover?.threeToFour ?? '',
+      type: 69,
+      publishTime,
+      screen: 0,
+      test: 0,
+      locationDetail: null,
+      canExplain: 1,
+      preVideoType: 0,
+      desc: '',
+      welcome: '欢迎来到我的直播间，喜欢我可以点一下关注哦~',
+      channelNum: '',
+      pcVersion: 1,
+    }
+
+    store.addLog('info', `【步骤6】直播间标题: ${randomTitle}`)
+    store.addLog('info', `【步骤6】发布时间: ${publishTime}`)
+
+    const liveId = await createLiveRoom(cookies, request)
+    store.setLiveRoomCreated(true, liveId)
+    store.addLog('success', `【步骤6】✓ 直播间创建成功，ID: ${liveId}`)
+    toast.success(`直播间创建成功，ID: ${liveId}`)
+  } catch (error) {
+    const msg = `创建直播间失败: ${error}`
+    store.addLog('error', `【步骤6】❌ ${msg}`)
+    toast.error(msg)
+    return
+  }
+
+  store.addLog('success', '========== 直播间创建完成 ==========')
 }
 
 // 开始直播
