@@ -85,11 +85,61 @@ const screenImageUrl = ref<string | null>(null)
 const canScreen = computed(() => store.getCurrentProducts().length > 0)
 
 // 讲解时间和休息时间设置（秒）
-const explainDuration = ref(60)
+const explainDuration = ref(70)
+const restDuration = ref(10)
+const autoExplainEnabled = ref(false) // 是否开启自动讲解
+const explainStartTime = ref(0) // 讲解开始时间戳（用于判断是否满 63 秒）
+const MIN_EXPLAIN_DURATION = 63000 // 最小讲解时长（毫秒）
+
+// 是否可以切换下一条（讲解满 63 秒才能切换）
+const canSwitchNext = computed(() => {
+  if (!isExplaining.value || explainStartTime.value === 0) return true
+  return Date.now() - explainStartTime.value >= MIN_EXPLAIN_DURATION
+})
+
+// 处理点击下一条（由 AIScriptPanel 触发）
+async function handleNextScript() {
+  // 如果开启了自动讲解且正在讲解，先结束当前讲解
+  if (autoExplainEnabled.value && isExplaining.value && currentExplainingSku.value) {
+    // 结束当前讲解（handleEndExplain 会自动触发休息和下一轮讲解）
+    await handleEndExplain(currentExplainingSku.value)
+    // 不需要手动切换，因为 startRestAndNextExplain 会处理
+    return
+  }
+
+  // 未开启自动讲解或未在讲解中，直接切换
+  store.nextScript()
+}
+
+// 休息时间后自动开始下一轮讲解
+function startRestAndNextExplain() {
+  // 启动休息时间倒计时
+  const restTargetTime = new Date(Date.now() + restDuration.value * 1000)
+  store.startCountdown(restTargetTime)
+  store.addLog('info', `进入休息时间 ${restDuration.value} 秒...`)
+
+  // 休息结束后自动切换到下一条并开始讲解
+  setTimeout(async () => {
+    // 切换到下一条
+    if (store.currentScriptIndex < store.aiScripts.length - 1) {
+      store.nextScript()
+
+      // 延迟后开始讲解下一个商品
+      await new Promise((resolve) => setTimeout(resolve, EXPLAIN_ACTION_DELAY))
+
+      const nextScript = store.aiScripts[store.currentScriptIndex]
+      if (nextScript?.productId && autoExplainEnabled.value) {
+        handleStartExplain(nextScript.productId)
+      }
+    } else {
+      store.addLog('info', '已是最后一条商品，自动讲解结束')
+      store.stopCountdown()
+    }
+  }, restDuration.value * 1000)
+}
 
 // 选择直播间相关
 const showLiveRoomSelect = ref(false)
-const restDuration = ref(10)
 
 // 处理浏览器选择
 function handleBrowserSelect(browser: BrowserInfo) {
@@ -570,12 +620,24 @@ async function getCurrentCookies(): Promise<Cookie[]> {
   return readCookiesFromFile(selectedBrowser.id)
 }
 
+// 讲解操作的最后执行时间（用于防止操作过快）
+let lastExplainActionTime = 0
+const EXPLAIN_ACTION_DELAY = 1500 // 讲解操作间隔（毫秒）
+
 // 开始讲解商品
 async function handleStartExplain(productId: string) {
   if (!store.liveId) {
     toast.error('直播间未创建')
     return
   }
+
+  // 检查操作间隔
+  const now = Date.now()
+  if (now - lastExplainActionTime < EXPLAIN_ACTION_DELAY) {
+    toast.warning('操作过快，请稍后再试')
+    return
+  }
+  lastExplainActionTime = now
 
   try {
     const cookies = await getCurrentCookies()
@@ -587,7 +649,9 @@ async function handleStartExplain(productId: string) {
     await startExplain(cookies, String(store.liveId), productId)
     isExplaining.value = true
     currentExplainingSku.value = productId
+    explainStartTime.value = Date.now() // 记录讲解开始时间
     store.addLog('success', `开始讲解商品: ${productId}`)
+    toast.success('开始讲解成功')
 
     // 开始讲解时启动倒计时
     if (!store.countdownRunning) {
@@ -602,14 +666,31 @@ async function handleStartExplain(productId: string) {
       screenImageUrl.value = product.img
     }
   } catch (error) {
-    store.addLog('error', `开始讲解失败: ${error}`)
-    toast.error(`开始讲解失败: ${error}`)
+    const errorMsg = String(error)
+    store.addLog('error', `开始讲解失败: ${errorMsg}`)
+
+    // 如果是"有正在讲解的商品"，说明已经在讲解中，更新状态
+    if (errorMsg.includes('正在讲解')) {
+      isExplaining.value = true
+      currentExplainingSku.value = productId
+      toast.warning(errorMsg)
+    } else {
+      toast.error(errorMsg)
+    }
   }
 }
 
 // 结束讲解商品
 async function handleEndExplain(productId: string) {
   if (!store.liveId) return
+
+  // 检查操作间隔
+  const now = Date.now()
+  if (now - lastExplainActionTime < EXPLAIN_ACTION_DELAY) {
+    toast.warning('操作过快，请稍后再试')
+    return
+  }
+  lastExplainActionTime = now
 
   try {
     const cookies = await getCurrentCookies()
@@ -618,9 +699,29 @@ async function handleEndExplain(productId: string) {
     await endExplain(cookies, String(store.liveId), productId)
     isExplaining.value = false
     currentExplainingSku.value = null
+    explainStartTime.value = 0 // 重置讲解开始时间
+    store.stopCountdown()
     store.addLog('info', `结束讲解商品: ${productId}`)
+    toast.success('结束讲解成功')
+
+    // 如果开启了自动讲解，进入休息时间后自动开始下一轮讲解
+    if (autoExplainEnabled.value) {
+      startRestAndNextExplain()
+    }
   } catch (error) {
-    store.addLog('error', `结束讲解失败: ${error}`)
+    const errorMsg = String(error)
+    store.addLog('error', `结束讲解失败: ${errorMsg}`)
+
+    // 如果是"讲解视频失败"错误，说明讲解本身没有开始，恢复状态
+    if (errorMsg.includes('讲解视频失败')) {
+      isExplaining.value = false
+      currentExplainingSku.value = null
+      store.stopCountdown()
+      store.addLog('warn', '讲解未成功开始，已恢复状态')
+      toast.warning('讲解未开始，已恢复')
+    } else {
+      toast.error(errorMsg)
+    }
   }
 }
 
@@ -776,9 +877,11 @@ onUnmounted(() => {
           :is-running="store.countdownRunning"
           :explain-duration="explainDuration"
           :rest-duration="restDuration"
+          :auto-explain-enabled="autoExplainEnabled"
           @complete="handleCountdownComplete"
           @update:explain-duration="explainDuration = $event"
           @update:rest-duration="restDuration = $event"
+          @update:auto-explain-enabled="autoExplainEnabled = $event"
         />
         <div class="flex-1 min-h-0">
           <AIScriptPanel
@@ -787,8 +890,11 @@ onUnmounted(() => {
             :total-products="store.getCurrentProducts().length"
             :is-explaining="isExplaining"
             :can-explain="canExplain"
+            :is-countdown-running="store.countdownRunning"
+            :auto-explain-enabled="autoExplainEnabled"
+            :can-switch-next="canSwitchNext"
             @prev="store.prevScript"
-            @next="store.nextScript"
+            @next="handleNextScript"
             @open-settings="showAISettings = true"
             @start-explain="handleStartExplain"
             @end-explain="handleEndExplain"
@@ -926,7 +1032,7 @@ onUnmounted(() => {
                 <div class="flex-1 min-w-0">
                   <p class="font-medium truncate text-sm">{{ session.title || '未命名' }}</p>
                   <p class="text-xs text-base-content/60">
-                    开播: {{ formatDate(session.startTime) }}
+                    ID: {{ session.liveId }} · 开播: {{ formatDate(session.startTime) }}
                   </p>
                 </div>
                 <button
@@ -965,7 +1071,7 @@ onUnmounted(() => {
                 <div class="flex-1 min-w-0">
                   <p class="font-medium truncate text-sm">{{ session.title || '未命名' }}</p>
                   <p class="text-xs text-base-content/50">
-                    开播: {{ formatDate(session.startTime) }}
+                    ID: {{ session.liveId }} · 开播: {{ formatDate(session.startTime) }}
                   </p>
                 </div>
                 <button

@@ -2,9 +2,11 @@
 /**
  * 倒计时投屏页面
  * 独立窗口显示倒计时，供 OBS 捕获
+ * 通过 Tauri 事件与主窗口同步
  */
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
+import { emit as tauriEmit, listen, type UnlistenFn } from '@tauri-apps/api/event'
 
 // 窗口标签
 const WINDOW_LABEL = 'screen-countdown'
@@ -15,8 +17,14 @@ const targetTime = ref<Date | null>(null)
 // 剩余时间（秒）
 const remainingSeconds = ref(0)
 
+// 是否正在运行
+const isRunning = ref(false)
+
 // 定时器
 let timer: number | null = null
+
+// 事件监听器
+let unlistenSync: UnlistenFn | null = null
 
 // 右键菜单状态
 const showContextMenu = ref(false)
@@ -34,20 +42,37 @@ const formattedTime = computed(() => {
 })
 
 // 是否已结束
-const isFinished = computed(() => remainingSeconds.value <= 0 && targetTime.value !== null)
+const isFinished = computed(() => remainingSeconds.value <= 0 && targetTime.value !== null && isRunning.value)
 
-onMounted(() => {
-  // 从 hash URL 参数获取目标时间
-  const hash = window.location.hash
-  const queryIndex = hash.indexOf('?')
-  if (queryIndex !== -1) {
-    const params = new URLSearchParams(hash.slice(queryIndex))
-    const timeStr = params.get('targetTime')
-    if (timeStr) {
-      targetTime.value = new Date(decodeURIComponent(timeStr))
-      startTimer()
-    }
-  }
+// 是否在最后 10 秒
+const isUrgent = computed(() => remainingSeconds.value > 0 && remainingSeconds.value <= 10)
+
+onMounted(async () => {
+  // 监听主窗口同步的倒计时数据
+  unlistenSync = await listen<{ targetTime: string | null; isRunning: boolean }>(
+    'countdown-sync-to-screen',
+    (event) => {
+      const { targetTime: timeStr, isRunning: running } = event.payload
+      isRunning.value = running
+
+      if (timeStr) {
+        targetTime.value = new Date(timeStr)
+        if (running && !timer) {
+          startTimer()
+        }
+      } else {
+        targetTime.value = null
+        remainingSeconds.value = 0
+        if (timer) {
+          clearInterval(timer)
+          timer = null
+        }
+      }
+    },
+  )
+
+  // 通知主窗口投屏已准备好，请求同步数据
+  tauriEmit('countdown-screen-ready')
 
   // 点击其他地方关闭菜单
   document.addEventListener('click', () => {
@@ -58,6 +83,9 @@ onMounted(() => {
 onUnmounted(() => {
   if (timer) {
     clearInterval(timer)
+  }
+  if (unlistenSync) {
+    unlistenSync()
   }
 })
 
@@ -109,13 +137,19 @@ async function startDrag(e: MouseEvent) {
     <!-- 倒计时显示 -->
     <div class="text-center w-full px-4">
       <div
-        class="font-mono font-bold countdown-text"
-        :class="isFinished ? 'text-green-500' : 'text-red-500'"
+        class="font-mono font-bold countdown-text transition-all"
+        :class="[
+          isFinished
+            ? 'text-green-500'
+            : isUrgent
+              ? 'text-red-500 animate-pulse'
+              : 'text-red-500',
+        ]"
       >
         {{ formattedTime }}
       </div>
       <p v-if="isFinished" class="text-green-500 subtitle-text mt-2">直播开始！</p>
-      <p v-else-if="!targetTime" class="text-gray-400 subtitle-text">等待开始...</p>
+      <p v-else-if="!targetTime || !isRunning" class="text-gray-400 subtitle-text">等待开始...</p>
     </div>
 
     <!-- 右键菜单 -->

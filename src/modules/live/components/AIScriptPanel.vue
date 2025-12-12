@@ -15,6 +15,9 @@ interface Props {
   totalProducts?: number // 直播间商品总数
   isExplaining?: boolean // 是否正在讲解
   canExplain?: boolean // 是否可以讲解（直播间已创建）
+  isCountdownRunning?: boolean // 倒计时是否正在运行
+  autoExplainEnabled?: boolean // 是否开启自动讲解
+  canSwitchNext?: boolean // 是否可以切换下一条（讲解满 63 秒）
 }
 
 interface Emits {
@@ -35,6 +38,9 @@ const props = withDefaults(defineProps<Props>(), {
   totalProducts: 0,
   isExplaining: false,
   canExplain: false,
+  isCountdownRunning: false,
+  autoExplainEnabled: false,
+  canSwitchNext: true,
 })
 const emit = defineEmits<Emits>()
 
@@ -61,9 +67,15 @@ const currentScript = computed(() => props.scripts[props.currentIndex] || null)
 // 当前话术字数
 const wordCount = computed(() => currentScript.value?.content?.length || 0)
 
-// 是否可以切换
+// 是否可以切换上一条（不受讲解时间限制）
 const canPrev = computed(() => props.currentIndex > 0)
-const canNext = computed(() => props.currentIndex < props.scripts.length - 1)
+// 是否可以切换下一条（开启自动讲解时，需要满足 63 秒限制）
+const canNext = computed(() => {
+  if (props.currentIndex >= props.scripts.length - 1) return false
+  // 如果开启了自动讲解且正在讲解，需要满足时间限制
+  if (props.autoExplainEnabled && props.isExplaining && !props.canSwitchNext) return false
+  return true
+})
 
 // 进度显示：当前索引/话术总数
 const progress = computed(() => {
@@ -77,46 +89,36 @@ const scriptProductCount = computed(() => {
   return `${props.scripts.length}/${props.totalProducts}`
 })
 
-// 是否是第一条话术（显示开始讲解按钮）
-const isFirstScript = computed(() => props.currentIndex === 0)
-
-// 处理上一条（结束当前讲解，开始上一个商品讲解）
+// 处理上一条（只切换，不执行讲解操作）
 function handlePrev() {
-  const currentProductId = currentScript.value?.productId
-  if (currentProductId && props.isExplaining) {
-    emit('endExplain', currentProductId)
-  }
   emit('prev')
-  // 延迟开始新商品讲解
-  setTimeout(() => {
-    const prevScript = props.scripts[props.currentIndex - 1]
-    if (prevScript?.productId) {
-      emit('startExplain', prevScript.productId)
-    }
-  }, 100)
 }
 
-// 处理下一条（结束当前讲解，开始下一个商品讲解）
+// 处理下一条（如果开启自动讲解，结束当前讲解并通知父组件）
 function handleNext() {
   const currentProductId = currentScript.value?.productId
-  if (currentProductId && props.isExplaining) {
+
+  // 如果开启了自动讲解且正在讲解，先结束当前讲解
+  if (props.autoExplainEnabled && currentProductId && props.isExplaining) {
     emit('endExplain', currentProductId)
   }
+
   emit('next')
-  // 延迟开始新商品讲解
-  setTimeout(() => {
-    const nextScript = props.scripts[props.currentIndex + 1]
-    if (nextScript?.productId) {
-      emit('startExplain', nextScript.productId)
-    }
-  }, 100)
 }
 
-// 开始讲解第一个商品
+// 开始讲解当前商品
 function handleStartFirstExplain() {
   const productId = currentScript.value?.productId
   if (productId) {
     emit('startExplain', productId)
+  }
+}
+
+// 停止讲解当前商品
+function handleStopExplain() {
+  const productId = currentScript.value?.productId
+  if (productId) {
+    emit('endExplain', productId)
   }
 }
 
@@ -293,16 +295,29 @@ onUnmounted(() => {
             上一条
           </button>
 
-          <!-- 第一条话术且未开始讲解：显示开始讲解按钮 -->
-          <button
-            v-if="isFirstScript && !isExplaining"
-            class="btn btn-sm btn-success"
-            :disabled="!canExplain || !currentScript?.productId"
-            @click="handleStartFirstExplain"
-          >
-            <Icon icon="mdi:microphone" />
-            开始讲解
-          </button>
+          <!-- 只有开启自动讲解时才显示讲解按钮 -->
+          <template v-if="autoExplainEnabled">
+            <!-- 未开始讲解：显示开始讲解按钮 -->
+            <button
+              v-if="!isExplaining"
+              class="btn btn-sm btn-success"
+              :disabled="!canExplain || !currentScript?.productId"
+              @click="handleStartFirstExplain"
+            >
+              <Icon icon="mdi:microphone" />
+              开始讲解
+            </button>
+
+            <!-- 讲解中：显示停止讲解按钮 -->
+            <button
+              v-else
+              class="btn btn-sm btn-error"
+              @click="handleStopExplain"
+            >
+              <Icon icon="mdi:microphone-off" />
+              停止讲解
+            </button>
+          </template>
 
           <button class="btn btn-sm btn-outline" :disabled="!canNext" @click="handleNext">
             下一条

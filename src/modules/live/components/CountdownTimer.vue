@@ -13,12 +13,14 @@ interface Props {
   isRunning: boolean
   explainDuration?: number // 讲解时长（秒）
   restDuration?: number // 休息时长（秒）
+  autoExplainEnabled?: boolean // 是否开启自动讲解
 }
 
 interface Emits {
   (e: 'complete'): void
   (e: 'update:explainDuration', value: number): void
   (e: 'update:restDuration', value: number): void
+  (e: 'update:autoExplainEnabled', value: boolean): void
 }
 
 // 倒计时投屏状态
@@ -28,8 +30,9 @@ const isCountdownScreening = ref(false)
 let unlistenClose: UnlistenFn | null = null
 
 const props = withDefaults(defineProps<Props>(), {
-  explainDuration: 60,
+  explainDuration: 70,
   restDuration: 10,
+  autoExplainEnabled: false,
 })
 const emit = defineEmits<Emits>()
 
@@ -39,6 +42,7 @@ let timer: ReturnType<typeof setInterval> | null = null
 // 本地编辑状态
 const localExplainDuration = ref(props.explainDuration)
 const localRestDuration = ref(props.restDuration)
+const autoExplainEnabled = computed(() => props.autoExplainEnabled)
 
 // 同步 props 变化
 watch(
@@ -88,6 +92,15 @@ const displayTime = computed(() => {
 
 // 是否已结束
 const isComplete = computed(() => remainingSeconds.value === 0 && props.isRunning)
+
+// 是否在最后 10 秒（紧急状态）
+const isUrgent = computed(() => remainingSeconds.value > 0 && remainingSeconds.value <= 10)
+
+// 是否在休息时间（剩余时间小于等于休息时长）
+const isRestTime = computed(() => {
+  if (!props.isRunning || isComplete.value) return false
+  return remainingSeconds.value <= props.restDuration
+})
 
 // 启动/停止计时器
 function startTimer() {
@@ -174,7 +187,15 @@ async function stopCountdownScreen() {
       <div class="flex items-start gap-4">
         <!-- 左侧：讲解时间设置 -->
         <div class="flex flex-col items-center gap-1">
-          <span class="text-sm font-bold text-base-content">讲解时间</span>
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-bold text-base-content">讲解时间</span>
+            <input
+              type="checkbox"
+              class="toggle toggle-success toggle-xs"
+              :checked="autoExplainEnabled"
+              @change="emit('update:autoExplainEnabled', ($event.target as HTMLInputElement).checked)"
+            />
+          </div>
           <div class="flex items-center gap-1">
             <input
               type="number"
@@ -216,17 +237,22 @@ async function stopCountdownScreen() {
           <!-- 倒计时显示 -->
           <div v-else class="py-1">
             <div
-              class="font-mono text-3xl font-bold"
-              :class="isComplete ? 'text-success' : 'text-primary'"
+              :class="[
+                'font-mono text-4xl font-bold transition-all',
+                isComplete
+                  ? 'text-success'
+                  : isUrgent
+                    ? 'text-error animate-pulse'
+                    : isRestTime
+                      ? 'text-success'
+                      : 'text-primary',
+              ]"
             >
               {{ displayTime }}
             </div>
             <p v-if="isComplete" class="text-success text-xs mt-1 text-center">
               <Icon icon="mdi:check-circle" class="inline" />
               倒计时结束
-            </p>
-            <p v-else-if="isRunning" class="text-base-content/60 text-xs mt-1 text-center">
-              距离直播开始
             </p>
           </div>
         </div>
