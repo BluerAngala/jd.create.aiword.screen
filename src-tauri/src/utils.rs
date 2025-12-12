@@ -136,3 +136,56 @@ pub async fn http_post(url: String, body: String) -> Result<String, String> {
 
     Ok(text)
 }
+
+/// 保存直播场次数据到文件
+#[tauri::command]
+pub async fn save_live_sessions(sessions_json: String) -> Result<String, String> {
+    use std::fs;
+
+    // 获取可执行文件所在目录
+    let exe_dir = std::env::current_exe()
+        .map_err(|e| format!("获取可执行文件路径失败: {}", e))?
+        .parent()
+        .map(|p| p.to_path_buf())
+        .ok_or_else(|| "无法获取程序目录".to_string())?;
+
+    // 创建 data 文件夹
+    let data_dir = exe_dir.join("data");
+    if !data_dir.exists() {
+        fs::create_dir_all(&data_dir).map_err(|e| format!("创建 data 目录失败: {}", e))?;
+    }
+
+    let file_path = data_dir.join("live_sessions.json");
+
+    // 写入文件
+    fs::write(&file_path, &sessions_json).map_err(|e| format!("写入文件失败: {}", e))?;
+
+    info!("直播场次数据已保存到: {:?}", file_path);
+    Ok(file_path.to_string_lossy().to_string())
+}
+
+/// 从文件加载直播场次数据
+#[tauri::command]
+pub async fn load_live_sessions() -> Result<String, String> {
+    use std::fs;
+
+    // 获取可执行文件所在目录
+    let exe_dir = std::env::current_exe()
+        .map_err(|e| format!("获取可执行文件路径失败: {}", e))?
+        .parent()
+        .map(|p| p.to_path_buf())
+        .ok_or_else(|| "无法获取程序目录".to_string())?;
+
+    let file_path = exe_dir.join("data").join("live_sessions.json");
+
+    // 如果文件不存在，返回空数组
+    if !file_path.exists() {
+        return Ok("[]".to_string());
+    }
+
+    // 读取文件
+    let content = fs::read_to_string(&file_path).map_err(|e| format!("读取文件失败: {}", e))?;
+
+    info!("直播场次数据已从文件加载: {:?}", file_path);
+    Ok(content)
+}

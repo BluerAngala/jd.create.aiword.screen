@@ -288,13 +288,31 @@ pub async fn get_recent_live_rooms(cookies: Vec<Cookie>) -> Result<Vec<RecentLiv
     info!("[最近直播间] 开始获取最近使用的直播间");
 
     let cookie_str = cookies_to_string(&cookies);
-    let url = "https://drlives.jd.com/live/pc/recentUsedIndex";
+
+    // 使用新的 API 接口
+    let body_json = serde_json::json!({
+        "pageId": "jlive.jd.com",
+        "PRICE_COLOR_API_TAG": true
+    });
+
+    let url = format!(
+        "https://api.m.jd.com/live_pc_recentUsedIndex?appid=plat-live-operate&functionId=live_pc_recentUsedIndex&body={}",
+        urlencoding::encode(&body_json.to_string())
+    );
 
     let client = reqwest::Client::new();
-    let headers = build_headers(&cookie_str);
+    let mut headers = reqwest::header::HeaderMap::new();
+    headers.insert("Cookie", cookie_str.parse().unwrap());
+    headers.insert("Referer", "https://jlive.jd.com/".parse().unwrap());
+    headers.insert(
+        "User-Agent",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
+            .parse()
+            .unwrap(),
+    );
 
     let response = client
-        .get(url)
+        .post(&url)
         .headers(headers)
         .send()
         .await
@@ -560,17 +578,35 @@ pub async fn start_explain(
     info!("[开始讲解] 直播间: {}, 商品: {}", live_id, sku_id);
 
     let cookie_str = cookies_to_string(&cookies);
-    let url = "https://drlives.jd.com/live/pc/explainBegin";
+
+    // 构建请求体 JSON
+    let body_json = serde_json::json!({
+        "liveId": live_id,
+        "type": 0,
+        "skuId": sku_id,
+        "pageId": "jlive.jd.com",
+        "PRICE_COLOR_API_TAG": true
+    });
+
+    let url = format!(
+        "https://api.m.jd.com/live_pc_explainBegin?appid=plat-live-operate&functionId=live_pc_explainBegin&body={}",
+        urlencoding::encode(&body_json.to_string())
+    );
 
     let client = reqwest::Client::new();
-    let headers = build_headers(&cookie_str);
-
-    let request = ExplainRequest { live_id, sku_id };
+    let mut headers = reqwest::header::HeaderMap::new();
+    headers.insert("Cookie", cookie_str.parse().unwrap());
+    headers.insert("Referer", "https://jlive.jd.com/".parse().unwrap());
+    headers.insert(
+        "User-Agent",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
+            .parse()
+            .unwrap(),
+    );
 
     let response = client
-        .post(url)
+        .post(&url)
         .headers(headers)
-        .json(&request)
         .send()
         .await
         .map_err(|e| format!("请求失败: {}", e))?;
@@ -602,17 +638,35 @@ pub async fn end_explain(
     info!("[结束讲解] 直播间: {}, 商品: {}", live_id, sku_id);
 
     let cookie_str = cookies_to_string(&cookies);
-    let url = "https://drlives.jd.com/live/pc/explainEnd";
+
+    // 构建请求体 JSON
+    let body_json = serde_json::json!({
+        "liveId": live_id,
+        "type": 0,
+        "skuId": sku_id,
+        "pageId": "jlive.jd.com",
+        "PRICE_COLOR_API_TAG": true
+    });
+
+    let url = format!(
+        "https://api.m.jd.com/live_pc_explainEnd?appid=plat-live-operate&functionId=live_pc_explainEnd&body={}",
+        urlencoding::encode(&body_json.to_string())
+    );
 
     let client = reqwest::Client::new();
-    let headers = build_headers(&cookie_str);
-
-    let request = ExplainRequest { live_id, sku_id };
+    let mut headers = reqwest::header::HeaderMap::new();
+    headers.insert("Cookie", cookie_str.parse().unwrap());
+    headers.insert("Referer", "https://jlive.jd.com/".parse().unwrap());
+    headers.insert(
+        "User-Agent",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
+            .parse()
+            .unwrap(),
+    );
 
     let response = client
-        .post(url)
+        .post(&url)
         .headers(headers)
-        .json(&request)
         .send()
         .await
         .map_err(|e| format!("请求失败: {}", e))?;

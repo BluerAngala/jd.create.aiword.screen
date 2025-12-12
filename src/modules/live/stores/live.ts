@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { invoke } from '@tauri-apps/api/core'
 import type {
   AppSettings,
   BrowserInfo,
@@ -10,6 +11,8 @@ import type {
   LogEntry,
   AIScript,
   AIScriptSettings,
+  LiveSession,
+  LiveProduct,
 } from '../types'
 
 const SETTINGS_KEY = 'jd-live-assistant-settings'
@@ -27,8 +30,8 @@ const defaultSettings: AppSettings = {
 
 // 默认图片配置
 const defaultImageConfig: ImageSettings = {
-  width: 800,
-  height: 800,
+  width: 300,
+  height: 300,
 }
 
 // 默认直播参数（开始时间为当前时间 + 3 分钟）
@@ -71,6 +74,10 @@ export const useLiveStore = defineStore('live', () => {
   const aiScripts = ref<AIScript[]>([])
   const currentScriptIndex = ref(0)
   const aiScriptSettings = ref<AIScriptSettings>(loadAISettings())
+
+  // 直播场次数据（持久化）
+  const liveSessions = ref<LiveSession[]>(loadLiveSessions())
+  const currentSession = ref<LiveSession | null>(null)
 
   // 计算属性
   const selectedBrowser = computed(() =>
@@ -252,6 +259,100 @@ export const useLiveStore = defineStore('live', () => {
     localStorage.setItem(AI_SETTINGS_KEY, JSON.stringify(newSettings))
   }
 
+  // 直播场次相关方法（从文件加载，初始返回空数组，需要调用 initLiveSessions 异步加载）
+  function loadLiveSessions(): LiveSession[] {
+    return []
+  }
+
+  // 异步初始化直播场次数据（从文件加载）
+  async function initLiveSessions() {
+    try {
+      const json = await invoke<string>('load_live_sessions')
+      liveSessions.value = JSON.parse(json)
+    } catch (e) {
+      console.error('加载直播场次数据失败:', e)
+      liveSessions.value = []
+    }
+  }
+
+  // 保存直播场次到文件
+  async function saveLiveSessions() {
+    try {
+      const json = JSON.stringify(liveSessions.value)
+      await invoke<string>('save_live_sessions', { sessionsJson: json })
+    } catch (e) {
+      console.error('保存直播场次数据失败:', e)
+    }
+  }
+
+  // 创建新的直播场次
+  function createLiveSession(
+    liveIdNum: number,
+    title: string,
+    browserName: string,
+    accountName: string,
+    startTime: Date,
+  ): LiveSession {
+    const session: LiveSession = {
+      id: String(liveIdNum),
+      liveId: liveIdNum,
+      title,
+      browserName,
+      accountName,
+      startTime: startTime.toISOString(),
+      createdAt: new Date().toISOString(),
+      products: [],
+    }
+    currentSession.value = session
+    return session
+  }
+
+  // 添加商品到当前直播场次
+  function addProductsToSession(products: LiveProduct[]) {
+    if (!currentSession.value) return
+    currentSession.value.products.push(...products)
+  }
+
+  // 保存当前直播场次
+  async function saveCurrentSession() {
+    if (!currentSession.value) return
+
+    // 检查是否已存在，存在则更新
+    const index = liveSessions.value.findIndex((s) => s.id === currentSession.value!.id)
+    if (index !== -1) {
+      liveSessions.value[index] = currentSession.value
+    } else {
+      liveSessions.value.unshift(currentSession.value) // 新的放在前面
+    }
+
+    // 只保留最近 50 场
+    if (liveSessions.value.length > 50) {
+      liveSessions.value = liveSessions.value.slice(0, 50)
+    }
+
+    await saveLiveSessions()
+  }
+
+  // 获取当前直播商品列表
+  function getCurrentProducts(): LiveProduct[] {
+    return currentSession.value?.products ?? []
+  }
+
+  // 根据 liveId 加载历史场次
+  function loadSessionByLiveId(liveIdNum: number): LiveSession | null {
+    const session = liveSessions.value.find((s) => s.liveId === liveIdNum)
+    if (session) {
+      currentSession.value = session
+    }
+    return session ?? null
+  }
+
+  // 删除历史场次
+  async function deleteSession(sessionId: string) {
+    liveSessions.value = liveSessions.value.filter((s) => s.id !== sessionId)
+    await saveLiveSessions()
+  }
+
   return {
     // 状态
     settings,
@@ -295,5 +396,16 @@ export const useLiveStore = defineStore('live', () => {
     nextScript,
     prevScript,
     saveAIScriptSettings,
+
+    // 直播场次
+    liveSessions,
+    currentSession,
+    initLiveSessions,
+    createLiveSession,
+    addProductsToSession,
+    saveCurrentSession,
+    getCurrentProducts,
+    loadSessionByLiveId,
+    deleteSession,
   }
 })

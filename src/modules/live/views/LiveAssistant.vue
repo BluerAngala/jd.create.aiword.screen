@@ -3,9 +3,10 @@
  * 京东直播助手主页面
  * 整合所有组件，实现完整的直播助手界面
  */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import { invoke } from '@tauri-apps/api/core'
+import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { useLiveStore } from '../stores/live'
 import { useToast } from '@/core/composables/useToast'
 import BrowserList from '../components/BrowserList.vue'
@@ -24,8 +25,16 @@ import type {
   Cookie,
   CreateLiveRequest,
   SkuInfo,
+  LiveProduct,
+  LiveSession,
 } from '../types'
-import { createLiveRoom, getSkuInfoByFile, addSkuToBagBatch } from '../api/jd'
+import {
+  createLiveRoom,
+  getSkuInfoByFile,
+  addSkuToBagBatch,
+  startExplain,
+  endExplain,
+} from '../api/jd'
 
 const store = useLiveStore()
 const toast = useToast()
@@ -51,8 +60,36 @@ function handleAISettingsSave(settings: AIScriptSettings) {
 // 浏览器加载状态
 const browserLoading = ref(false)
 
+// 是否已选择并登录浏览器
+const isBrowserLoggedIn = computed(
+  () => store.selectedBrowser?.jdAccount?.isLoggedIn === true,
+)
+
 // 开始直播按钮状态
-const canStartLive = computed(() => store.isLiveRoomCreated && !store.isLiveStarted)
+const canStartLive = computed(
+  () => isBrowserLoggedIn.value && store.isLiveRoomCreated && !store.isLiveStarted,
+)
+
+// 是否可以讲解（已登录 + 已创建直播间）
+const canExplain = computed(() => isBrowserLoggedIn.value && store.isLiveRoomCreated)
+
+// 讲解状态
+const isExplaining = ref(false)
+const currentExplainingSku = ref<string | null>(null)
+
+// 投屏状态
+const isScreening = ref(false)
+const screenImageUrl = ref<string | null>(null)
+
+// 是否可以投屏（有商品数据）
+const canScreen = computed(() => store.getCurrentProducts().length > 0)
+
+// 讲解时间和休息时间设置（秒）
+const explainDuration = ref(60)
+
+// 选择直播间相关
+const showLiveRoomSelect = ref(false)
+const restDuration = ref(10)
 
 // 处理浏览器选择
 function handleBrowserSelect(browser: BrowserInfo) {
@@ -190,9 +227,19 @@ async function addSkusToBag(liveId: number, cookies: Cookie[]): Promise<number> 
 
         try {
           const result = await addSkuToBagBatch(cookies, liveId, batch)
-          if (result.success) {
+          if (result.success && result.success_count > 0) {
             fileSuccess += result.success_count
             totalSuccess += result.success_count
+
+            // 保存成功添加的商品到当前直播场次
+            const addedProducts: LiveProduct[] = batch.slice(0, result.success_count).map((sku) => ({
+              sku: sku.sku,
+              title: sku.title ?? '',
+              img: sku.img ?? '',
+              price: sku.price,
+              shopName: sku.shopName,
+            }))
+            store.addProductsToSession(addedProducts)
           }
         } catch (error) {
           store.addLog('error', `【文件${fileIndex + 1}】添加失败: ${error}`)
@@ -373,6 +420,15 @@ async function handleCreateLiveRoom() {
     store.setLiveRoomCreated(true, liveId)
     store.addLog('success', `【步骤6】✓ 直播间创建成功，ID: ${liveId}`)
 
+    // 创建直播场次，用于保存商品数据
+    store.createLiveSession(
+      liveId,
+      randomTitle,
+      selectedBrowser.name,
+      selectedBrowser.jdAccount?.nickname ?? '',
+      store.liveParams.startTime,
+    )
+
     // 7. 添加商品到购物袋
     const successCount = await addSkusToBag(liveId, cookies)
     if (successCount > 0) {
@@ -380,6 +436,10 @@ async function handleCreateLiveRoom() {
     } else {
       store.addLog('warn', '【步骤7】⚠ 未能添加商品到购物袋')
     }
+
+    // 保存直播场次数据（包含商品列表）
+    store.saveCurrentSession()
+    store.addLog('info', `【步骤8】✓ 已保存 ${store.getCurrentProducts().length} 个商品数据`)
 
     toast.success(`直播间创建成功，已添加 ${successCount} 个商品`)
   } catch (error) {
@@ -392,6 +452,39 @@ async function handleCreateLiveRoom() {
   store.addLog('success', '========== 直播间创建完成 ==========')
 }
 
+// 生成 AI 话术（基于商品数据）
+function generateAIScripts() {
+  const products = store.getCurrentProducts()
+  // 取前 10 条商品生成话术
+  const topProducts = products.slice(0, 10)
+
+  if (topProducts.length === 0) {
+    store.setAIScripts([
+      { id: '1', content: '欢迎来到直播间！今天给大家带来超值好物推荐~' },
+    ])
+    return
+  }
+
+  const scripts = topProducts.map((product, index) => ({
+    id: String(index + 1),
+    productId: product.sku,
+    content: generateProductScript(product, index),
+  }))
+
+  store.setAIScripts(scripts)
+  store.addLog('success', `已生成 ${scripts.length} 条商品话术`)
+}
+
+// 生成单个商品话术
+function generateProductScript(product: LiveProduct, index: number): string {
+  const templates = [
+    `【第${index + 1}款】${product.title}\n\n这款商品非常推荐给大家！品质有保障，价格也很实惠。喜欢的朋友们可以点击下方链接下单哦~`,
+    `【第${index + 1}款】${product.title}\n\n家人们看过来！这款商品是我们精心挑选的，性价比超高！数量有限，先到先得~`,
+    `【第${index + 1}款】${product.title}\n\n宝子们，这款商品真的太棒了！我自己也在用，强烈推荐给大家！赶紧下单吧~`,
+  ]
+  return templates[index % templates.length] ?? templates[0]!
+}
+
 // 开始直播
 async function handleStartLive() {
   if (!canStartLive.value) return
@@ -402,11 +495,8 @@ async function handleStartLive() {
   const targetTime = new Date(Date.now() + 60 * 1000)
   store.startCountdown(targetTime)
 
-  store.setAIScripts([
-    { id: '1', content: '欢迎来到直播间！今天给大家带来超值好物推荐~' },
-    { id: '2', content: '这款商品是我们精心挑选的，品质有保障！' },
-    { id: '3', content: '喜欢的朋友们赶紧下单，数量有限哦！' },
-  ])
+  // 基于商品数据生成话术
+  generateAIScripts()
 }
 
 // 倒计时结束
@@ -414,6 +504,159 @@ function handleCountdownComplete() {
   store.addLog('success', '倒计时结束，直播正式开始！')
   store.stopCountdown()
 }
+
+// 获取当前 Cookie
+async function getCurrentCookies(): Promise<Cookie[]> {
+  const selectedBrowser = store.selectedBrowser
+  if (!selectedBrowser) return []
+  return readCookiesFromFile(selectedBrowser.id)
+}
+
+// 开始讲解商品
+async function handleStartExplain(productId: string) {
+  if (!store.liveId) {
+    toast.error('直播间未创建')
+    return
+  }
+
+  try {
+    const cookies = await getCurrentCookies()
+    if (cookies.length === 0) {
+      toast.error('无法获取 Cookie')
+      return
+    }
+
+    await startExplain(cookies, String(store.liveId), productId)
+    isExplaining.value = true
+    currentExplainingSku.value = productId
+    store.addLog('success', `开始讲解商品: ${productId}`)
+
+    // 更新投屏图片为当前商品
+    const products = store.getCurrentProducts()
+    const product = products.find((p) => p.sku === productId)
+    if (product?.img) {
+      screenImageUrl.value = product.img
+    }
+  } catch (error) {
+    store.addLog('error', `开始讲解失败: ${error}`)
+    toast.error(`开始讲解失败: ${error}`)
+  }
+}
+
+// 结束讲解商品
+async function handleEndExplain(productId: string) {
+  if (!store.liveId) return
+
+  try {
+    const cookies = await getCurrentCookies()
+    if (cookies.length === 0) return
+
+    await endExplain(cookies, String(store.liveId), productId)
+    isExplaining.value = false
+    currentExplainingSku.value = null
+    store.addLog('info', `结束讲解商品: ${productId}`)
+  } catch (error) {
+    store.addLog('error', `结束讲解失败: ${error}`)
+  }
+}
+
+// 开启投屏（调用后端创建独立窗口）
+async function handleStartScreen() {
+  const products = store.getCurrentProducts()
+  if (products.length === 0) {
+    toast.error('没有商品数据')
+    return
+  }
+
+  const firstProduct = products[0]
+  if (!firstProduct?.img) {
+    toast.error('第一个商品没有图片')
+    return
+  }
+
+  try {
+    // 调用后端创建投屏窗口（无边框）
+    await invoke('create_screen_window', {
+      label: 'screen-window',
+      title: '商品投屏',
+      width: store.imageConfig.width,
+      height: store.imageConfig.height,
+      transparent: false,
+      alwaysOnTop: true,
+      decorations: false, // 无边框，去掉顶部操作栏
+      resizable: true,
+      backgroundColor: '#000000',
+      extraParams: `imageUrl=${encodeURIComponent(firstProduct.img)}`,
+    })
+
+    screenImageUrl.value = firstProduct.img
+    isScreening.value = true
+    store.addLog('success', `投屏已开启，显示商品: ${firstProduct.title}`)
+  } catch (error) {
+    store.addLog('error', `开启投屏失败: ${error}`)
+    toast.error(`开启投屏失败: ${error}`)
+  }
+}
+
+// 停止投屏
+async function handleStopScreen() {
+  try {
+    await invoke('close_screen_window', { label: 'screen-window' })
+  } catch {
+    // 忽略关闭错误
+  }
+  isScreening.value = false
+  screenImageUrl.value = null
+  store.addLog('info', '投屏已关闭')
+}
+
+// 获取本地保存的直播间列表
+function fetchRecentLiveRooms() {
+  const sessions = store.liveSessions
+  if (sessions.length === 0) {
+    toast.info('暂无本地保存的直播间，请先新建直播间')
+    return
+  }
+  showLiveRoomSelect.value = true
+  store.addLog('info', `获取到 ${sessions.length} 个本地直播间`)
+}
+
+// 选择本地保存的直播间
+function handleSelectLiveRoom(session: LiveSession) {
+  store.setLiveRoomCreated(true, session.liveId)
+  store.loadSessionByLiveId(session.liveId)
+  showLiveRoomSelect.value = false
+  store.addLog('success', `已加载直播间: ${session.title}，商品数量: ${session.products.length}`)
+  toast.success(`已选择直播间: ${session.title}`)
+}
+
+// 格式化日期显示
+function formatDate(dateStr: string): string {
+  const date = new Date(dateStr)
+  return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+// 窗口关闭事件监听器
+let unlistenWindowDestroyed: UnlistenFn | null = null
+
+// 组件挂载时初始化
+onMounted(async () => {
+  await store.initLiveSessions()
+
+  // 监听投屏窗口销毁事件，同步投屏状态
+  unlistenWindowDestroyed = await listen('screen-window-closed', () => {
+    isScreening.value = false
+    screenImageUrl.value = null
+    store.addLog('info', '投屏窗口已关闭')
+  })
+})
+
+// 组件卸载时清理监听器
+onUnmounted(() => {
+  if (unlistenWindowDestroyed) {
+    unlistenWindowDestroyed()
+  }
+})
 </script>
 
 <template>
@@ -425,15 +668,24 @@ function handleCountdownComplete() {
         <CountdownTimer
           :target-time="store.countdownTargetTime"
           :is-running="store.countdownRunning"
+          :explain-duration="explainDuration"
+          :rest-duration="restDuration"
           @complete="handleCountdownComplete"
+          @update:explain-duration="explainDuration = $event"
+          @update:rest-duration="restDuration = $event"
         />
         <div class="flex-1 min-h-0">
           <AIScriptPanel
             :scripts="store.aiScripts"
             :current-index="store.currentScriptIndex"
+            :total-products="store.getCurrentProducts().length"
+            :is-explaining="isExplaining"
+            :can-explain="canExplain"
             @prev="store.prevScript"
             @next="store.nextScript"
             @open-settings="showAISettings = true"
+            @start-explain="handleStartExplain"
+            @end-explain="handleEndExplain"
           />
         </div>
       </div>
@@ -454,8 +706,12 @@ function handleCountdownComplete() {
         <ImageConfig
           :config="store.imageConfig"
           :expanded="expandedPanel === 'image'"
+          :can-screen="canScreen"
+          :is-screening="isScreening"
           @update="handleImageConfigUpdate"
           @toggle="togglePanel('image')"
+          @start-screen="handleStartScreen"
+          @stop-screen="handleStopScreen"
         />
         <ExecutionLog
           :logs="store.logs"
@@ -472,8 +728,16 @@ function handleCountdownComplete() {
       <LiveParams :params="store.liveParams" @update="handleLiveParamsUpdate" />
       <div class="flex gap-2">
         <button
+          class="btn btn-outline btn-sm"
+          :disabled="!isBrowserLoggedIn || store.isLiveRoomCreated"
+          @click="fetchRecentLiveRooms"
+        >
+          <Icon icon="mdi:format-list-bulleted" />
+          选择直播间
+        </button>
+        <button
           class="btn btn-secondary btn-sm"
-          :disabled="store.isLiveRoomCreated"
+          :disabled="!isBrowserLoggedIn || store.isLiveRoomCreated"
           @click="handleCreateLiveRoom"
         >
           <Icon icon="mdi:plus-circle" />
@@ -493,6 +757,59 @@ function handleCountdownComplete() {
       @update:visible="showAISettings = $event"
       @save="handleAISettingsSave"
     />
+
+    <!-- 选择直播间弹窗 -->
+    <dialog :class="['modal', { 'modal-open': showLiveRoomSelect }]">
+      <div class="modal-box max-w-lg">
+        <h3 class="font-bold text-lg mb-4">
+          <Icon icon="mdi:format-list-bulleted" class="inline mr-2" />
+          选择直播间（本地记录）
+        </h3>
+
+        <div v-if="store.liveSessions.length === 0" class="text-center py-8 text-base-content/60">
+          <Icon icon="mdi:inbox-outline" class="text-4xl mb-2" />
+          <p>暂无本地保存的直播间</p>
+          <p class="text-xs mt-1">请先新建直播间</p>
+        </div>
+
+        <div v-else class="space-y-2 max-h-80 overflow-y-auto">
+          <div
+            v-for="session in store.liveSessions"
+            :key="session.id"
+            class="flex items-center gap-3 p-3 rounded-lg border border-base-300 hover:bg-base-200 cursor-pointer transition-colors"
+            @click="handleSelectLiveRoom(session)"
+          >
+            <!-- 商品数量图标 -->
+            <div class="w-12 h-12 bg-primary/10 rounded flex flex-col items-center justify-center">
+              <Icon icon="mdi:package-variant" class="text-primary text-lg" />
+              <span class="text-xs text-primary font-medium">{{ session.products.length }}</span>
+            </div>
+
+            <!-- 信息 -->
+            <div class="flex-1 min-w-0">
+              <p class="font-medium truncate">{{ session.title || '未命名直播间' }}</p>
+              <p class="text-xs text-base-content/60">
+                ID: {{ session.liveId }} · {{ session.accountName }}
+              </p>
+              <p class="text-xs text-base-content/40">
+                {{ formatDate(session.createdAt) }}
+              </p>
+            </div>
+
+            <Icon icon="mdi:chevron-right" class="text-base-content/40" />
+          </div>
+        </div>
+
+        <div class="modal-action">
+          <button class="btn btn-ghost" @click="showLiveRoomSelect = false">
+            取消
+          </button>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop">
+        <button @click="showLiveRoomSelect = false">关闭</button>
+      </form>
+    </dialog>
   </div>
 </template>
 

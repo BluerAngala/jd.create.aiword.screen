@@ -348,3 +348,26 @@ export interface AddSkuResult {
   success_count: number
   error_msg?: string
 }
+
+// ============ 直播商品数据（持久化）============
+
+// 直播商品（简化版，用于 AI 话术、投屏、讲解控制）
+export interface LiveProduct {
+  sku: string           // 商品 ID
+  title: string         // 商品名称
+  img: string           // 商品图片
+  price?: string        // 价格
+  shopName?: string     // 店铺名称
+}
+
+// 直播场次数据
+export interface LiveSession {
+  id: string            // 唯一标识（使用 liveId）
+  liveId: number        // 直播间 ID
+  title: string         // 直播间标题
+  browserName: string   // 使用的浏览器名称
+  accountName: string   // 京东账号昵称
+  startTime: string     // 直播开始时间
+  createdAt: string     // 创建时间
+  products: LiveProduct[] // 直播商品列表
+}

@@ -42,6 +42,8 @@ pub fn run() {
             utils::get_app_dir,
             utils::save_cookies_to_file,
             utils::http_post,
+            utils::save_live_sessions,
+            utils::load_live_sessions,
             // cookie 模块
             cookie::get_browser_profiles,
             cookie::read_chrome_cookies,
@@ -61,6 +63,7 @@ pub fn run() {
             // screen 模块
             screen::create_screen_window,
             screen::close_screen_window,
+            screen::start_dragging_window,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
