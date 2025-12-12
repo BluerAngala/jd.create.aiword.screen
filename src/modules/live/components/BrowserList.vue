@@ -82,6 +82,13 @@ async function loadBrowserProfiles() {
   }
 }
 
+// 京东登录验证结果类型
+interface JdLoginResult {
+  is_logged_in: boolean
+  nickname: string | null
+  avatar: string | null
+}
+
 /**
  * 获取指定浏览器的京东 Cookie
  */
@@ -90,6 +97,7 @@ async function fetchJdCookies(browser: BrowserInfo) {
   liveStore.addLog('info', `正在获取 ${browser.name} 的京东 Cookie...`)
 
   try {
+    // 获取所有 jd.com 及其子域名的 Cookie
     const cookies = await invoke<Cookie[]>('read_chrome_cookies', {
       domain: 'jd.com',
       profile: browser.id,
@@ -98,16 +106,32 @@ async function fetchJdCookies(browser: BrowserInfo) {
     // 打印 Cookie 结果
     liveStore.addLog('success', `获取到 ${cookies.length} 个京东域名的 Cookie`)
 
-    // 尝试从 Cookie 中获取用户昵称（通常在 pin 或 unick 中）
-    const pinCookie = cookies.find((c) => c.name === 'pin' || c.name === 'unick')
-    const nickname = pinCookie ? decodeURIComponent(pinCookie.value) : undefined
+    // 通过后端 API 验证京东登录状态
+    liveStore.addLog('info', '正在验证京东登录状态...')
+    const loginResult = await invoke<JdLoginResult>('verify_jd_login', { cookies })
+
+    // 只有登录成功才保存 Cookie
+    if (loginResult.is_logged_in && cookies.length > 0) {
+      try {
+        const filename = `jd_cookies_${browser.id.replace(/\s+/g, '_')}.json`
+        const savedPath = await invoke<string>('save_cookies_to_file', {
+          cookies,
+          filename,
+        })
+        liveStore.addLog('success', `Cookie 已保存到: ${savedPath}`)
+      } catch (saveError) {
+        liveStore.addLog('warn', `Cookie 保存失败: ${saveError}`)
+      }
+    }
 
     // 更新浏览器信息
     const updatedBrowsers = props.browsers.map((b) => {
       if (b.id === browser.id) {
         return {
           ...b,
-          jdAccount: nickname ? { nickname, isLoggedIn: true } : { nickname: '未登录', isLoggedIn: false },
+          jdAccount: loginResult.is_logged_in
+            ? { nickname: loginResult.nickname || '已登录', isLoggedIn: true }
+            : { nickname: '未登录', isLoggedIn: false },
         }
       }
       return b
@@ -115,8 +139,8 @@ async function fetchJdCookies(browser: BrowserInfo) {
 
     emit('update:browsers', updatedBrowsers)
 
-    if (nickname) {
-      liveStore.addLog('success', `京东账号: ${nickname}`)
+    if (loginResult.is_logged_in) {
+      liveStore.addLog('success', `京东账号: ${loginResult.nickname}`)
     } else {
       liveStore.addLog('warn', '未检测到京东登录状态')
     }

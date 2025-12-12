@@ -1,4 +1,5 @@
-// Chrome Cookie 读取模块 - 使用 CDP 协议
+//! Chrome Cookie 读取模块 - 使用 CDP 协议
+
 mod reader;
 
 pub use reader::{get_chrome_profiles, read_chrome_cookies_cdp, ChromeProfile};
@@ -42,3 +43,20 @@ impl std::fmt::Display for CookieError {
 }
 
 impl std::error::Error for CookieError {}
+
+/// 获取所有 Chrome 浏览器配置文件列表（Tauri Command）
+#[tauri::command]
+pub fn get_browser_profiles() -> Result<Vec<ChromeProfile>, String> {
+    get_chrome_profiles().map_err(|e| e.to_string())
+}
+
+/// 读取 Chrome Cookie 命令（使用 CDP 协议）
+#[tauri::command]
+pub async fn read_chrome_cookies(
+    domain: String,
+    profile: Option<String>,
+) -> Result<Vec<Cookie>, String> {
+    read_chrome_cookies_cdp(&domain, profile.as_deref())
+        .await
+        .map_err(|e| e.to_string())
+}

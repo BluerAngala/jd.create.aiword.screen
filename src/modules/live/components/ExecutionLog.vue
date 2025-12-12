@@ -27,8 +27,8 @@ const logContainer = ref<HTMLElement | null>(null)
 const { copy, copied } = useClipboard()
 
 const levelConfig = {
-  info: { icon: 'mdi:information', class: 'text-info' },
-  warn: { icon: 'mdi:alert', class: 'text-warning' },
+  info: { icon: 'mdi:information', class: 'text-base-content' },
+  warn: { icon: 'mdi:alert', class: 'text-base-content' },
   error: { icon: 'mdi:alert-circle', class: 'text-error' },
   success: { icon: 'mdi:check-circle', class: 'text-success' },
 }

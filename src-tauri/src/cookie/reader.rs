@@ -141,19 +141,27 @@ pub fn extract_domain(url: &str) -> String {
 }
 
 /// 检查 Cookie 域名是否匹配目标域名
+/// 匹配规则：jd.com 应该匹配 jd.com、.jd.com、*.jd.com 等所有子域名
 fn domain_matches(cookie_domain: &str, target_domain: &str) -> bool {
-    let cookie_domain = cookie_domain.trim_start_matches('.');
-    let target_domain = target_domain.trim_start_matches('.');
+    let cookie_domain = cookie_domain.trim_start_matches('.').to_lowercase();
+    let target_domain = target_domain.trim_start_matches('.').to_lowercase();
 
+    // 完全匹配
     if cookie_domain == target_domain {
         return true;
     }
 
-    // 检查子域名匹配
-    target_domain.ends_with(&format!(".{}", cookie_domain))
-        || cookie_domain.ends_with(&format!(".{}", target_domain))
-        || target_domain.contains(cookie_domain)
-        || cookie_domain.contains(target_domain)
+    // Cookie 域名是目标域名的子域名（如 drlives.jd.com 匹配 jd.com）
+    if cookie_domain.ends_with(&format!(".{}", target_domain)) {
+        return true;
+    }
+
+    // 目标域名是 Cookie 域名的子域名（如 jd.com 匹配 drlives.jd.com）
+    if target_domain.ends_with(&format!(".{}", cookie_domain)) {
+        return true;
+    }
+
+    false
 }
 
 /// 使用 CDP 协议读取 Chrome Cookie
@@ -198,11 +206,27 @@ pub async fn read_chrome_cookies_cdp(
         .map_err(|e| CookieError::Other(format!("获取 Cookie 失败: {}", e)))?;
 
     let all_cookies = result.cookies.clone();
+    info!(
+        "[Cookie] 获取到 {} 个原始 Cookie，目标域名: {}",
+        all_cookies.len(),
+        target_domain
+    );
+
+    // 打印所有 Cookie 的域名（用于调试）
+    let domains: std::collections::HashSet<String> =
+        all_cookies.iter().map(|c| c.domain.clone()).collect();
+    info!("[Cookie] 所有 Cookie 域名: {:?}", domains);
 
     // 过滤匹配域名的 Cookie
     let mut cookies: Vec<Cookie> = all_cookies
         .into_iter()
-        .filter(|c| domain_matches(&c.domain, &target_domain))
+        .filter(|c| {
+            let matched = domain_matches(&c.domain, &target_domain);
+            if matched {
+                info!("[Cookie] 匹配: {} (域名: {})", c.name, c.domain);
+            }
+            matched
+        })
         .map(|c| Cookie {
             name: c.name,
             value: c.value,
