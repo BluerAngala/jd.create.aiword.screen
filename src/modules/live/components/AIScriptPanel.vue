@@ -266,7 +266,7 @@ onUnmounted(() => {
       >
         <Icon icon="mdi:text-box-remove-outline" class="text-4xl mb-2" />
         <p class="text-sm">暂无话术</p>
-        <p class="text-xs">开始直播后将显示 AI 话术</p>
+        <p class="text-xs">请先选择或新建直播间</p>
       </div>
 
       <!-- 话术内容 -->

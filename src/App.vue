@@ -2,10 +2,11 @@
 import { ref } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
+import { openUrl } from '@tauri-apps/plugin-opener'
 import { ThemeSelector, ToastContainer } from '@/core/components'
 import { initLogger } from '@/core/composables'
 import { appConfig } from '@/config/app.config'
-import { AnnouncementBar, SettingsModal, useLiveStore } from '@/modules/live'
+import { AnnouncementBar } from '@/modules/live'
 
 // === 可选模块（不需要可注释掉）===
 import { LoginModal, useAuthStore } from '@/modules/auth'
@@ -15,13 +16,14 @@ const authStore = useAuthStore()
 initLogger()
 
 const route = useRoute()
-const liveStore = useLiveStore()
 
 // 公告内容
 const announcement = ref('欢迎使用京东直播助手，请先选择浏览器并配置商品信息。')
 
-// 设置弹窗
-const showSettings = ref(false)
+// 打开个人中心
+const openUserCenter = () => {
+  openUrl('https://env-00jxu65bfie3-static.normal.cloudstatic.cn/admin/index.html#/')
+}
 
 // 是否显示导航栏（投屏页面隐藏）
 const showNavbar = () => !['ScreenContent', 'ScreenCountdown', 'ScreenScript'].includes(route.name as string)
@@ -37,10 +39,10 @@ const showNavbar = () => !['ScreenContent', 'ScreenCountdown', 'ScreenScript'].i
       <div class="flex-1">
         <AnnouncementBar :content="announcement" />
       </div>
-      <!-- 设置按钮 -->
-      <button class="btn btn-ghost btn-sm" @click="showSettings = true">
-        <Icon icon="mdi:cog" class="text-lg" />
-        软件设置
+      <!-- 个人中心按钮 -->
+      <button class="btn btn-ghost btn-sm" @click="openUserCenter">
+        <Icon icon="mdi:account-circle" class="text-lg" />
+        个人中心
       </button>
       <!-- 退出登录 -->
       <button
@@ -57,13 +59,7 @@ const showNavbar = () => !['ScreenContent', 'ScreenCountdown', 'ScreenScript'].i
       <RouterView />
     </main>
 
-    <!-- 设置弹窗 -->
-    <SettingsModal
-      :visible="showSettings"
-      :settings="liveStore.settings"
-      @update:visible="showSettings = $event"
-      @save="liveStore.saveSettings"
-    />
+
 
     <!-- 登录弹窗（启用 auth 模块且未登录时显示） -->
     <LoginModal v-if="appConfig.features.auth && !authStore.isLoggedIn" />

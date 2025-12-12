@@ -348,8 +348,8 @@ export const useLiveStore = defineStore('live', () => {
   }
 
   // 删除历史场次
-  async function deleteSession(sessionId: string) {
-    liveSessions.value = liveSessions.value.filter((s) => s.id !== sessionId)
+  async function deleteSession(liveIdNum: number) {
+    liveSessions.value = liveSessions.value.filter((s) => s.liveId !== liveIdNum)
     await saveLiveSessions()
   }
 

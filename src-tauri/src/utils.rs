@@ -89,6 +89,37 @@ pub async fn save_cookies_to_file(
     Ok(file_path.to_string_lossy().to_string())
 }
 
+/// 从本地文件读取 Cookie
+#[tauri::command]
+pub async fn load_cookies_from_file(filename: String) -> Result<Vec<Cookie>, String> {
+    use std::fs;
+
+    // 获取可执行文件所在目录
+    let exe_dir = std::env::current_exe()
+        .map_err(|e| format!("获取可执行文件路径失败: {}", e))?
+        .parent()
+        .map(|p| p.to_path_buf())
+        .ok_or_else(|| "无法获取程序目录".to_string())?;
+
+    let file_path = exe_dir.join("cookies").join(&filename);
+
+    // 检查文件是否存在
+    if !file_path.exists() {
+        return Err(format!("Cookie 文件不存在: {:?}", file_path));
+    }
+
+    // 读取文件内容
+    let json_content =
+        fs::read_to_string(&file_path).map_err(|e| format!("读取文件失败: {}", e))?;
+
+    // 解析 JSON
+    let cookies: Vec<Cookie> =
+        serde_json::from_str(&json_content).map_err(|e| format!("解析 Cookie 失败: {}", e))?;
+
+    info!("从文件加载了 {} 个 Cookie: {:?}", cookies.len(), file_path);
+    Ok(cookies)
+}
+
 // 示例：带结构体的 Command
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UserInfo {

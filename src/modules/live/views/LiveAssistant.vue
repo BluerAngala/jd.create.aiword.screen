@@ -118,10 +118,23 @@ function handleLiveParamsUpdate(params: LiveParameters) {
   store.setLiveParams(params)
 }
 
-// 读取 Cookie（通过 Tauri 后端）
+// 读取 Cookie（优先从本地文件读取，避免重复启动浏览器）
 async function readCookiesFromFile(browserId: string): Promise<Cookie[]> {
+  // 先尝试从本地文件读取
+  const filename = `jd_cookies_${browserId.replace(/\s+/g, '_')}.json`
   try {
-    // 重新获取 Cookie
+    const cookies = await invoke<Cookie[]>('load_cookies_from_file', { filename })
+    if (cookies && cookies.length > 0) {
+      store.addLog('info', `从本地文件加载了 ${cookies.length} 个 Cookie`)
+      return cookies
+    }
+  } catch {
+    // 本地文件不存在或读取失败，继续尝试从浏览器获取
+    store.addLog('info', '本地 Cookie 文件不存在，尝试从浏览器获取...')
+  }
+
+  // 本地文件不存在，从浏览器获取
+  try {
     const cookies = await invoke<Cookie[]>('read_chrome_cookies', {
       domain: 'jd.com',
       profile: browserId,
@@ -442,6 +455,11 @@ async function handleCreateLiveRoom() {
     store.addLog('info', `【步骤8】✓ 已保存 ${store.getCurrentProducts().length} 个商品数据`)
 
     toast.success(`直播间创建成功，已添加 ${successCount} 个商品`)
+
+    // 自动生成 AI 话术（先显示前 10 条，后台继续生成剩余的）
+    generateAIScripts()
+    // 后台批量生成所有商品话术
+    generateAllAIScriptsInBackground()
   } catch (error) {
     const msg = `创建直播间失败: ${error}`
     store.addLog('error', `【步骤6】❌ ${msg}`)
@@ -485,6 +503,46 @@ function generateProductScript(product: LiveProduct, index: number): string {
   return templates[index % templates.length] ?? templates[0]!
 }
 
+// 后台批量生成所有商品的 AI 话术
+let isGeneratingScripts = false
+async function generateAllAIScriptsInBackground() {
+  if (isGeneratingScripts) return
+  isGeneratingScripts = true
+
+  const products = store.getCurrentProducts()
+  if (products.length <= 10) {
+    isGeneratingScripts = false
+    return // 商品数量不超过 10 条，已经全部生成
+  }
+
+  store.addLog('info', `后台开始生成剩余 ${products.length - 10} 条商品话术...`)
+
+  // 从第 11 条开始，每批生成 10 条
+  const batchSize = 10
+  let currentIndex = 10
+
+  while (currentIndex < products.length) {
+    const batch = products.slice(currentIndex, currentIndex + batchSize)
+    const newScripts = batch.map((product, i) => ({
+      id: String(currentIndex + i + 1),
+      productId: product.sku,
+      content: generateProductScript(product, currentIndex + i),
+    }))
+
+    // 追加到现有话术列表
+    const existingScripts = store.aiScripts
+    store.setAIScripts([...existingScripts, ...newScripts])
+
+    currentIndex += batchSize
+
+    // 短暂延迟，避免阻塞 UI
+    await new Promise((resolve) => setTimeout(resolve, 50))
+  }
+
+  store.addLog('success', `已完成全部 ${products.length} 条商品话术生成`)
+  isGeneratingScripts = false
+}
+
 // 开始直播
 async function handleStartLive() {
   if (!canStartLive.value) return
@@ -492,8 +550,11 @@ async function handleStartLive() {
   store.addLog('info', '直播已开始，请点击"开始讲解"按钮开始倒计时')
   store.setLiveStarted(true)
 
-  // 基于商品数据生成话术
-  generateAIScripts()
+  // 如果还没有话术，则生成（正常情况下创建/选择直播间时已生成）
+  if (store.aiScripts.length === 0) {
+    generateAIScripts()
+    generateAllAIScriptsInBackground()
+  }
 }
 
 // 倒计时结束
@@ -631,12 +692,54 @@ function handleSelectLiveRoom(session: LiveSession) {
   showLiveRoomSelect.value = false
   store.addLog('success', `已加载直播间: ${session.title}，商品数量: ${session.products.length}`)
   toast.success(`已选择直播间: ${session.title}`)
+
+  // 自动生成 AI 话术
+  generateAIScripts()
+  // 后台批量生成所有商品话术
+  generateAllAIScriptsInBackground()
 }
 
 // 格式化日期显示
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr)
   return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+// 判断直播间是否已过期（开播时间超过当前时间 30 分钟）
+function isSessionExpired(session: LiveSession): boolean {
+  const startTime = new Date(session.startTime).getTime()
+  const now = Date.now()
+  return now > startTime + 30 * 60 * 1000
+}
+
+// 当前账号的直播间（根据选中的浏览器账号过滤）
+const currentAccountSessions = computed(() => {
+  const currentAccount = store.selectedBrowser?.jdAccount?.nickname
+  if (!currentAccount) return store.liveSessions
+  return store.liveSessions.filter((s) => s.accountName === currentAccount)
+})
+
+// 待开播的直播间（按开播时间从新到旧排序）
+const pendingSessions = computed(() => {
+  return currentAccountSessions.value
+    .filter((s) => !isSessionExpired(s))
+    .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
+})
+
+// 历史直播间（按开播时间从新到旧排序）
+const historySessions = computed(() => {
+  return currentAccountSessions.value
+    .filter((s) => isSessionExpired(s))
+    .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
+})
+
+// 删除直播间
+function handleDeleteSession(session: LiveSession, event: Event) {
+  event.stopPropagation() // 阻止触发选择事件
+  if (confirm(`确定删除直播间「${session.title || session.liveId}」吗？`)) {
+    store.deleteSession(session.liveId)
+    toast.success('已删除直播间')
+  }
 }
 
 // 窗口关闭事件监听器
@@ -764,42 +867,116 @@ onUnmounted(() => {
     <!-- 选择直播间弹窗 -->
     <dialog :class="['modal', { 'modal-open': showLiveRoomSelect }]">
       <div class="modal-box max-w-lg">
-        <h3 class="font-bold text-lg mb-4">
-          <Icon icon="mdi:format-list-bulleted" class="inline mr-2" />
-          选择直播间（本地记录）
-        </h3>
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-bold text-lg">
+            <Icon icon="mdi:format-list-bulleted" class="inline mr-2" />
+            选择直播间
+          </h3>
+          <!-- 当前账号显示在右上角 -->
+          <span v-if="store.selectedBrowser?.jdAccount?.nickname" class="text-sm text-base-content/60">
+            <Icon icon="mdi:account" class="inline" />
+            {{ store.selectedBrowser.jdAccount.nickname }}
+          </span>
+        </div>
 
-        <div v-if="store.liveSessions.length === 0" class="text-center py-8 text-base-content/60">
+        <div v-if="currentAccountSessions.length === 0" class="text-center py-8 text-base-content/60">
           <Icon icon="mdi:inbox-outline" class="text-4xl mb-2" />
-          <p>暂无本地保存的直播间</p>
+          <p>该账号暂无直播间记录</p>
           <p class="text-xs mt-1">请先新建直播间</p>
         </div>
 
-        <div v-else class="space-y-2 max-h-80 overflow-y-auto">
-          <div
-            v-for="session in store.liveSessions"
-            :key="session.id"
-            class="flex items-center gap-3 p-3 rounded-lg border border-base-300 hover:bg-base-200 cursor-pointer transition-colors"
-            @click="handleSelectLiveRoom(session)"
-          >
-            <!-- 商品数量图标 -->
-            <div class="w-12 h-12 bg-primary/10 rounded flex flex-col items-center justify-center">
-              <Icon icon="mdi:package-variant" class="text-primary text-lg" />
-              <span class="text-xs text-primary font-medium">{{ session.products.length }}</span>
+        <div v-else class="space-y-4 max-h-96 overflow-y-auto">
+          <!-- 待开播 -->
+          <div v-if="pendingSessions.length > 0">
+            <div class="text-sm font-medium text-success mb-2 flex items-center gap-1">
+              <Icon icon="mdi:clock-outline" />
+              待开播 ({{ pendingSessions.length }})
             </div>
-
-            <!-- 信息 -->
-            <div class="flex-1 min-w-0">
-              <p class="font-medium truncate">{{ session.title || '未命名直播间' }}</p>
-              <p class="text-xs text-base-content/60">
-                ID: {{ session.liveId }} · {{ session.accountName }}
-              </p>
-              <p class="text-xs text-base-content/40">
-                {{ formatDate(session.createdAt) }}
-              </p>
+            <div class="space-y-2">
+              <div
+                v-for="session in pendingSessions"
+                :key="session.id"
+                :class="[
+                  'flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors',
+                  store.liveId === session.liveId
+                    ? 'border-success bg-success/10'
+                    : 'border-base-300 hover:bg-base-200',
+                ]"
+                @click="handleSelectLiveRoom(session)"
+              >
+                <div
+                  :class="[
+                    'w-10 h-10 rounded flex flex-col items-center justify-center',
+                    store.liveId === session.liveId ? 'bg-success/20' : 'bg-base-200',
+                  ]"
+                >
+                  <Icon
+                    icon="mdi:package-variant"
+                    :class="store.liveId === session.liveId ? 'text-success' : 'text-base-content/60'"
+                  />
+                  <span
+                    :class="[
+                      'text-xs font-medium',
+                      store.liveId === session.liveId ? 'text-success' : 'text-base-content/60',
+                    ]"
+                  >
+                    {{ session.products.length }}
+                  </span>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="font-medium truncate text-sm">{{ session.title || '未命名' }}</p>
+                  <p class="text-xs text-base-content/60">
+                    开播: {{ formatDate(session.startTime) }}
+                  </p>
+                </div>
+                <button
+                  class="btn btn-ghost btn-xs text-error"
+                  title="删除"
+                  @click="handleDeleteSession(session, $event)"
+                >
+                  <Icon icon="mdi:delete-outline" />
+                </button>
+              </div>
             </div>
+          </div>
 
-            <Icon icon="mdi:chevron-right" class="text-base-content/40" />
+          <!-- 历史记录 -->
+          <div v-if="historySessions.length > 0">
+            <div class="text-sm font-medium text-base-content/50 mb-2 flex items-center gap-1">
+              <Icon icon="mdi:history" />
+              历史记录 ({{ historySessions.length }})
+            </div>
+            <div class="space-y-2">
+              <div
+                v-for="session in historySessions"
+                :key="session.id"
+                :class="[
+                  'flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors',
+                  store.liveId === session.liveId
+                    ? 'border-base-content/30 bg-base-200'
+                    : 'border-base-300 hover:bg-base-200 opacity-60',
+                ]"
+                @click="handleSelectLiveRoom(session)"
+              >
+                <div class="w-10 h-10 bg-base-300 rounded flex flex-col items-center justify-center">
+                  <Icon icon="mdi:package-variant" class="text-base-content/50" />
+                  <span class="text-xs text-base-content/50 font-medium">{{ session.products.length }}</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="font-medium truncate text-sm">{{ session.title || '未命名' }}</p>
+                  <p class="text-xs text-base-content/50">
+                    开播: {{ formatDate(session.startTime) }}
+                  </p>
+                </div>
+                <button
+                  class="btn btn-ghost btn-xs text-error"
+                  title="删除"
+                  @click="handleDeleteSession(session, $event)"
+                >
+                  <Icon icon="mdi:delete-outline" />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 

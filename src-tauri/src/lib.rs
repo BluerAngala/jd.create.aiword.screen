@@ -41,6 +41,7 @@ pub fn run() {
             utils::get_machine_code,
             utils::get_app_dir,
             utils::save_cookies_to_file,
+            utils::load_cookies_from_file,
             utils::http_post,
             utils::save_live_sessions,
             utils::load_live_sessions,
