@@ -6,11 +6,14 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import { invoke } from '@tauri-apps/api/core'
-import { listen, type UnlistenFn } from '@tauri-apps/api/event'
+import { emit as tauriEmit, listen, type UnlistenFn } from '@tauri-apps/api/event'
 
 interface Props {
   targetTime: Date | null
   isRunning: boolean
+  isPaused?: boolean // 是否暂停中
+  pausedRemaining?: number | null // 暂停时的剩余秒数
+  phase?: 'prepare' | 'explain' | 'rest' // 当前阶段
   explainDuration?: number // 讲解时长（秒）
   restDuration?: number // 休息时长（秒）
 }
@@ -19,6 +22,9 @@ interface Emits {
   (e: 'complete'): void
   (e: 'update:explainDuration', value: number): void
   (e: 'update:restDuration', value: number): void
+  (e: 'start'): void // 开始计时
+  (e: 'pause'): void // 暂停计时
+  (e: 'stop'): void // 结束计时
 }
 
 // 倒计时投屏状态
@@ -26,8 +32,12 @@ const isCountdownScreening = ref(false)
 
 // 窗口关闭事件监听器
 let unlistenClose: UnlistenFn | null = null
+let unlistenReady: UnlistenFn | null = null
 
 const props = withDefaults(defineProps<Props>(), {
+  isPaused: false,
+  pausedRemaining: null,
+  phase: 'explain',
   explainDuration: 70,
   restDuration: 10,
 })
@@ -70,6 +80,10 @@ function updateRestDuration(value: number) {
 
 // 计算剩余秒数
 const remainingSeconds = computed(() => {
+  // 暂停状态下显示暂停时的剩余秒数
+  if (props.isPaused && props.pausedRemaining !== null) {
+    return props.pausedRemaining
+  }
   if (!props.targetTime) return 0
   const diff = Math.floor((props.targetTime.getTime() - now.value.getTime()) / 1000)
   return Math.max(0, diff)
@@ -92,15 +106,11 @@ const isComplete = computed(() => remainingSeconds.value === 0 && props.isRunnin
 // 是否在最后 10 秒（紧急状态）
 const isUrgent = computed(() => remainingSeconds.value > 0 && remainingSeconds.value <= 10)
 
-// 是否在休息时间（剩余时间小于等于休息时长）
-const isRestTime = computed(() => {
-  if (!props.isRunning || isComplete.value) return false
-  return remainingSeconds.value <= props.restDuration
-})
-
 // 启动/停止计时器
 function startTimer() {
   if (timer) return
+  // 立即更新当前时间，避免显示偏差
+  now.value = new Date()
   timer = setInterval(() => {
     now.value = new Date()
     if (remainingSeconds.value === 0 && props.isRunning) {
@@ -130,10 +140,24 @@ watch(
   { immediate: true }
 )
 
+// 同步倒计时数据到投屏窗口
+function syncToScreen() {
+  if (!isCountdownScreening.value) return
+  tauriEmit('countdown-sync-to-screen', {
+    targetTime: props.targetTime?.toISOString() ?? null,
+    isRunning: props.isRunning,
+  })
+}
+
 onMounted(async () => {
   // 监听倒计时投屏窗口关闭事件
   unlistenClose = await listen('screen-countdown-closed', () => {
     isCountdownScreening.value = false
+  })
+
+  // 监听投屏窗口准备好事件，发送当前状态
+  unlistenReady = await listen('countdown-screen-ready', () => {
+    syncToScreen()
   })
 })
 
@@ -142,7 +166,18 @@ onUnmounted(() => {
   if (unlistenClose) {
     unlistenClose()
   }
+  if (unlistenReady) {
+    unlistenReady()
+  }
 })
+
+// 监听 props 变化，同步到投屏窗口
+watch(
+  () => [props.targetTime, props.isRunning],
+  () => {
+    syncToScreen()
+  }
+)
 
 // 开启倒计时投屏
 async function startCountdownScreen() {
@@ -211,17 +246,19 @@ async function stopCountdownScreen() {
             </button>
           </div>
 
-          <!-- 未开始状态 -->
-          <div
-            v-if="!isRunning && !targetTime"
-            class="py-2 text-base-content/60 flex flex-col items-center justify-center"
-          >
-            <Icon icon="mdi:clock-outline" class="text-3xl mb-1" />
-            <p class="text-xs">等待开始</p>
-          </div>
-
-          <!-- 倒计时显示 -->
-          <div v-else class="py-1">
+          <!-- 倒计时显示（始终显示，默认归零） -->
+          <div class="py-1 relative">
+            <!-- 状态标签绝对定位在左边 -->
+            <span
+              v-if="isRunning || isPaused"
+              :class="[
+                'badge badge-lg absolute -left-32 top-1/2 -translate-y-1/2',
+                phase === 'explain' ? 'badge-primary' : 'badge-success',
+              ]"
+            >
+              {{ phase === 'prepare' ? '准备中' : phase === 'rest' ? '休息中' : '讲解中' }}
+            </span>
+            <!-- 倒计时数字居中 -->
             <div
               :class="[
                 'font-mono text-4xl font-bold transition-all',
@@ -229,7 +266,7 @@ async function stopCountdownScreen() {
                   ? 'text-success'
                   : isUrgent
                     ? 'text-error animate-pulse'
-                    : isRestTime
+                    : phase === 'prepare' || phase === 'rest'
                       ? 'text-success'
                       : 'text-primary',
               ]"
@@ -240,6 +277,41 @@ async function stopCountdownScreen() {
               <Icon icon="mdi:check-circle" class="inline" />
               倒计时结束
             </p>
+          </div>
+
+          <!-- 控制按钮 -->
+          <div class="flex gap-2 mt-2">
+            <!-- 未运行且未暂停：显示开始 -->
+            <button
+              v-if="!isRunning && !isPaused"
+              class="btn btn-xs btn-success"
+              @click="emit('start')"
+            >
+              <Icon icon="mdi:play" class="text-sm" />
+              开始
+            </button>
+            <!-- 暂停中：显示继续和结束 -->
+            <template v-else-if="!isRunning && isPaused">
+              <button class="btn btn-xs btn-success" @click="emit('start')">
+                <Icon icon="mdi:play" class="text-sm" />
+                继续
+              </button>
+              <button class="btn btn-xs btn-error" @click="emit('stop')">
+                <Icon icon="mdi:stop" class="text-sm" />
+                结束
+              </button>
+            </template>
+            <!-- 运行中：显示暂停和结束 -->
+            <template v-else>
+              <button class="btn btn-xs btn-warning" @click="emit('pause')">
+                <Icon icon="mdi:pause" class="text-sm" />
+                暂停
+              </button>
+              <button class="btn btn-xs btn-error" @click="emit('stop')">
+                <Icon icon="mdi:stop" class="text-sm" />
+                结束
+              </button>
+            </template>
           </div>
         </div>
 

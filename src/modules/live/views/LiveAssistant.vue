@@ -811,7 +811,6 @@ async function generateAllAIScriptsInBackground() {
 async function handleStartLive() {
   if (!canStartLive.value) return
 
-  store.addLog('info', '直播已开始，请点击"开始讲解"按钮开始倒计时')
   store.setLiveStarted(true)
 
   // 如果还没有话术，则生成（正常情况下创建/选择直播间时已生成）
@@ -819,12 +818,51 @@ async function handleStartLive() {
     generateAIScripts()
     generateAllAIScriptsInBackground()
   }
+
+  // 启动 1 分钟准备倒计时
+  store.startCountdownFromSeconds(LIVE_CONFIG.PREPARE_DURATION, 'prepare')
+  store.addLog('info', `直播准备中，${LIVE_CONFIG.PREPARE_DURATION} 秒后正式开始...`)
 }
 
-// 倒计时结束
-function handleCountdownComplete() {
-  store.addLog('success', '倒计时结束，直播正式开始！')
+// 倒计时控制：开始
+function handleCountdownStart() {
+  // 如果有暂停的剩余时间，恢复；否则按讲解时长开始
+  if (store.countdownPausedRemaining !== null) {
+    store.resumeCountdown()
+    store.addLog('info', '倒计时已恢复')
+  } else {
+    store.startCountdownFromSeconds(explainDuration.value)
+    store.addLog('info', `倒计时开始：${explainDuration.value} 秒`)
+  }
+}
+
+// 倒计时控制：暂停
+function handleCountdownPause() {
+  store.pauseCountdown()
+  store.addLog('info', `倒计时已暂停，剩余 ${store.countdownPausedRemaining} 秒`)
+}
+
+// 倒计时控制：结束
+function handleCountdownStop() {
   store.stopCountdown()
+  store.addLog('info', '倒计时已结束')
+}
+
+// 倒计时结束，自动切换到下一阶段（准备 → 讲解 ↔ 休息循环）
+function handleCountdownComplete() {
+  if (store.countdownPhase === 'prepare') {
+    // 准备结束，进入讲解
+    store.addLog('success', '准备时间结束，开始讲解！')
+    store.startCountdownFromSeconds(explainDuration.value, 'explain')
+  } else if (store.countdownPhase === 'explain') {
+    // 讲解结束，进入休息
+    store.addLog('info', `讲解时间结束，休息 ${restDuration.value} 秒...`)
+    store.startCountdownFromSeconds(restDuration.value, 'rest')
+  } else {
+    // 休息结束，进入讲解
+    store.addLog('info', `休息结束，开始讲解 ${explainDuration.value} 秒...`)
+    store.startCountdownFromSeconds(explainDuration.value, 'explain')
+  }
 }
 
 // 获取当前 Cookie
@@ -1135,8 +1173,12 @@ onUnmounted(() => {
       <div class="w-3/5 flex flex-col gap-3">
         <CountdownTimer
 :target-time="store.countdownTargetTime" :is-running="store.countdownRunning"
+          :is-paused="store.countdownPausedRemaining !== null"
+          :paused-remaining="store.countdownPausedRemaining"
+          :phase="store.countdownPhase"
           :explain-duration="explainDuration" :rest-duration="restDuration" @complete="handleCountdownComplete"
-          @update:explain-duration="explainDuration = $event" @update:rest-duration="restDuration = $event" />
+          @update:explain-duration="explainDuration = $event" @update:rest-duration="restDuration = $event"
+          @start="handleCountdownStart" @pause="handleCountdownPause" @stop="handleCountdownStop" />
         <div class="flex-1 min-h-0 h-full">
           <AIScriptPanel
 :scripts="store.aiScripts" :current-index="store.currentScriptIndex"

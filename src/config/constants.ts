@@ -128,6 +128,8 @@ export const LIVE_CONFIG = {
   MIN_START_TIME_MINUTES: 3,
   /** 最大开播时间（天后） */
   MAX_START_TIME_DAYS: 30,
+  /** 直播准备时间（秒） */
+  PREPARE_DURATION: 60,
 } as const
 
 // ============ 默认值配置 ============

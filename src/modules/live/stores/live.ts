@@ -71,6 +71,8 @@ export const useLiveStore = defineStore('live', () => {
   const isLiveStarted = ref(false)
   const countdownTargetTime = ref<Date | null>(null)
   const countdownRunning = ref(false)
+  const countdownPausedRemaining = ref<number | null>(null) // 暂停时剩余秒数
+  const countdownPhase = ref<'prepare' | 'explain' | 'rest'>('explain') // 当前阶段：准备/讲解/休息
   const liveId = ref<number | null>(null)
 
   // AI 话术
@@ -233,10 +235,45 @@ export const useLiveStore = defineStore('live', () => {
   function startCountdown(targetTime: Date) {
     countdownTargetTime.value = targetTime
     countdownRunning.value = true
+    countdownPausedRemaining.value = null
+  }
+
+  // 从剩余秒数开始倒计时
+  function startCountdownFromSeconds(
+    seconds: number,
+    phase: 'prepare' | 'explain' | 'rest' = 'explain'
+  ) {
+    countdownTargetTime.value = new Date(Date.now() + seconds * 1000)
+    countdownRunning.value = true
+    countdownPausedRemaining.value = null
+    countdownPhase.value = phase
+  }
+
+  // 暂停倒计时（保存剩余时间）
+  function pauseCountdown() {
+    if (countdownTargetTime.value && countdownRunning.value) {
+      const remaining = Math.max(
+        0,
+        Math.floor((countdownTargetTime.value.getTime() - Date.now()) / 1000)
+      )
+      countdownPausedRemaining.value = remaining
+      countdownRunning.value = false
+      countdownTargetTime.value = null // 清除目标时间，避免组件使用旧值
+    }
+  }
+
+  // 恢复倒计时
+  function resumeCountdown() {
+    if (countdownPausedRemaining.value !== null) {
+      startCountdownFromSeconds(countdownPausedRemaining.value)
+    }
   }
 
   function stopCountdown() {
     countdownRunning.value = false
+    countdownPausedRemaining.value = null
+    countdownTargetTime.value = null // 清除目标时间，显示归零
+    countdownPhase.value = 'explain' // 重置为讲解阶段
   }
 
   // AI 话术方法
@@ -543,7 +580,12 @@ export const useLiveStore = defineStore('live', () => {
     setLiveRoomCreated,
     setLiveStarted,
     startCountdown,
+    startCountdownFromSeconds,
+    pauseCountdown,
+    resumeCountdown,
     stopCountdown,
+    countdownPausedRemaining,
+    countdownPhase,
     setAIScripts,
     updateAIScript,
     nextScript,
