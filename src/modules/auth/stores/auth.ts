@@ -8,7 +8,7 @@ const VERIFY_API =
   'https://env-00jxu65bfie3.dev-hz.cloudbasefunction.cn/http/router/admin/card/pub/verify'
 
 // 产品 ID（根据实际情况修改）
-const PRODUCT_ID = 'exe-explain'
+const PRODUCT_ID = 'jd-live-assistant-plus'
 
 // 本地存储 key
 const STORAGE_KEY = 'auth_info'

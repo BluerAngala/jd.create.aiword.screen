@@ -1,12 +1,12 @@
 [package]
-name = "jd-live-assistant"
+name = "jd-live-assistant-plus"
 version = "0.1.0"
-description = "京东直播助手"
+description = "JD直播助手PLUS"
 authors = ["BluerAngala <new-ai@foxmail.com>"]
 edition = "2021"
 
 [lib]
-name = "jd_live_assistant_lib"
+name = "jd_live_assistant_plus_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

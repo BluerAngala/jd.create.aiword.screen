@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    jd_live_assistant_lib::run()
+    jd_live_assistant_plus_lib::run()
 }
