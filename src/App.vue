@@ -20,7 +20,7 @@ initLogger()
 const route = useRoute()
 
 // 公告内容
-const announcement = ref('欢迎使用京东直播助手，请先选择浏览器并配置商品信息。')
+const announcement = ref('欢迎使用JD直播助手PLUS版，请先选择浏览器并配置商品信息。')
 
 // 打开个人中心
 const openUserCenter = () => {

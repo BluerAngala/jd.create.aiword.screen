@@ -1,6 +1,6 @@
 [package]
 name = "jd-live-assistant-plus"
-version = "0.1.0"
+version = "1.0.0"
 description = "JD直播助手PLUS"
 authors = ["BluerAngala <new-ai@foxmail.com>"]
 edition = "2021"
