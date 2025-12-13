@@ -106,8 +106,8 @@ export const useAuthStore = defineStore('auth', () => {
         id: userId,
       })
 
-      // 使用 Tauri 后端发送请求，绕过 CORS 限制
-      const responseText = await invoke<string>('http_post', { url: VERIFY_API, body })
+      // 使用 Tauri 后端发送加密请求
+      const responseText = await invoke<string>('http_post_encrypted', { url: VERIFY_API, body })
       const result = JSON.parse(responseText)
       console.log('[Auth] 登录响应:', result)
 
@@ -165,7 +165,7 @@ export const useAuthStore = defineStore('auth', () => {
         id: authInfo.value.userId,
       })
 
-      const responseText = await invoke<string>('http_post', { url: VERIFY_API, body })
+      const responseText = await invoke<string>('http_post_encrypted', { url: VERIFY_API, body })
       const result = JSON.parse(responseText)
       console.log('[Auth] 状态检查响应:', result)
 

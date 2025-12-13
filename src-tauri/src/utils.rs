@@ -168,6 +168,52 @@ pub async fn http_post(url: String, body: String) -> Result<String, String> {
     Ok(text)
 }
 
+/// 加密 HTTP POST 请求
+/// 自动加密请求体，解密响应体
+/// 用于卡密校验等敏感接口
+#[tauri::command]
+pub async fn http_post_encrypted(url: String, body: String) -> Result<String, String> {
+    use crate::crypto;
+
+    // 1. 加密请求体
+    let encrypted_body = crypto::encrypt(&body).map_err(|e| format!("加密请求失败: {}", e))?;
+
+    // 2. 构造加密请求 JSON
+    let encrypted_request = serde_json::json!({
+        "encrypted_body": encrypted_body
+    })
+    .to_string();
+
+    // 3. 发送请求
+    let client = reqwest::Client::new();
+    let response = client
+        .post(&url)
+        .header("Content-Type", "application/json")
+        .body(encrypted_request)
+        .send()
+        .await
+        .map_err(|e| format!("请求失败: {}", e))?;
+
+    let response_text = response
+        .text()
+        .await
+        .map_err(|e| format!("读取响应失败: {}", e))?;
+
+    // 4. 解析响应，检查是否为加密响应
+    let response_json: serde_json::Value =
+        serde_json::from_str(&response_text).map_err(|e| format!("解析响应失败: {}", e))?;
+
+    // 5. 如果响应包含 encrypted_body，则解密
+    if let Some(encrypted_response) = response_json.get("encrypted_body").and_then(|v| v.as_str()) {
+        let decrypted =
+            crypto::decrypt(encrypted_response).map_err(|e| format!("解密响应失败: {}", e))?;
+        Ok(decrypted)
+    } else {
+        // 服务端返回的是未加密响应（兼容模式）
+        Ok(response_text)
+    }
+}
+
 /// 保存直播场次数据到文件
 #[tauri::command]
 pub async fn save_live_sessions(sessions_json: String) -> Result<String, String> {

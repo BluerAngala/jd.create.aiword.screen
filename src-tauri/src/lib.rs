@@ -4,6 +4,7 @@ use log::info;
 
 // 功能模块
 mod cookie;
+mod crypto;
 mod jd;
 mod screen;
 mod utils;
@@ -43,6 +44,7 @@ pub fn run() {
             utils::save_cookies_to_file,
             utils::load_cookies_from_file,
             utils::http_post,
+            utils::http_post_encrypted,
             utils::save_live_sessions,
             utils::load_live_sessions,
             // cookie 模块
