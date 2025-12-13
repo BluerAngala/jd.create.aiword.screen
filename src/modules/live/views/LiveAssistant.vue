@@ -824,6 +824,13 @@ async function handleStartLive() {
   store.addLog('info', `直播准备中，${LIVE_CONFIG.PREPARE_DURATION} 秒后正式开始...`)
 }
 
+// 停止直播
+function handleStopLive() {
+  store.setLiveStarted(false)
+  store.stopCountdown()
+  store.addLog('info', '直播已停止')
+}
+
 // 倒计时控制：开始
 function handleCountdownStart() {
   // 如果有暂停的剩余时间，恢复；否则按讲解时长开始
@@ -1220,6 +1227,7 @@ onUnmounted(() => {
           新建直播间
         </button>
         <button
+          v-if="!store.isLiveStarted"
           class="btn btn-sm text-white border-none"
           :class="canStartLive ? 'bg-red-500 hover:bg-red-600' : 'bg-gray-300 cursor-not-allowed'"
           :disabled="!canStartLive"
@@ -1227,6 +1235,14 @@ onUnmounted(() => {
         >
           <Icon icon="mdi:play" />
           开始直播
+        </button>
+        <button
+          v-else
+          class="btn btn-sm btn-error"
+          @click="handleStopLive"
+        >
+          <Icon icon="mdi:stop" />
+          停止直播
         </button>
       </div>
     </div>
