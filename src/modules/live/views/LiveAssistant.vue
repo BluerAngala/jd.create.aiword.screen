@@ -1069,6 +1069,14 @@ function handleDeleteSession(session: LiveSession, event: Event) {
   }
 }
 
+// 复制直播间后台链接
+async function handleCopyLiveRoomLink(liveId: number, event: Event) {
+  event.stopPropagation() // 阻止触发选择事件
+  const url = `https://jlive.jd.com/my/room?id=${liveId}`
+  await navigator.clipboard.writeText(url)
+  toast.success('已复制后台链接')
+}
+
 // 窗口关闭事件监听器
 let unlistenScreenWindow: UnlistenFn | null = null
 
@@ -1244,9 +1252,14 @@ icon="mdi:package-variant" :class="store.liveId === session.liveId ? 'text-succe
                   </p>
                 </div>
                 <button
-class="btn btn-ghost btn-xs text-error" title="删除"
+                  class="btn btn-ghost btn-xs text-info" title="复制后台链接"
+                  @click="handleCopyLiveRoomLink(session.liveId, $event)">
+                  <Icon icon="mdi:content-copy" /> 复制链接
+                </button>
+                <button
+                  class="btn btn-ghost btn-xs text-error" title="删除"
                   @click="handleDeleteSession(session, $event)">
-                  <Icon icon="mdi:delete-outline" />
+                  <Icon icon="mdi:delete-outline" /> 删除
                 </button>
               </div>
             </div>
@@ -1279,9 +1292,14 @@ v-for="session in historySessions" :key="session.id" :class="[
                   </p>
                 </div>
                 <button
-class="btn btn-ghost btn-xs text-error" title="删除"
+                  class="btn btn-ghost btn-xs text-info" title="复制后台链接"
+                  @click="handleCopyLiveRoomLink(session.liveId, $event)">
+                  <Icon icon="mdi:content-copy" /> 复制链接
+                </button>
+                <button
+                  class="btn btn-ghost btn-xs text-error" title="删除"
                   @click="handleDeleteSession(session, $event)">
-                  <Icon icon="mdi:delete-outline" />
+                  <Icon icon="mdi:delete-outline" /> 删除
                 </button>
               </div>
             </div>

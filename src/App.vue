@@ -24,7 +24,7 @@ const announcement = ref('欢迎使用京东直播助手，请先选择浏览器
 
 // 打开个人中心
 const openUserCenter = () => {
-  openUrl('https://env-00jxu65bfie3-static.normal.cloudstatic.cn/admin/index.html#/')
+  openUrl('https://bluerangala.feishu.cn/docx/TyoBdH9p3o2aK8xEtNbcBY2bnNg?from=from_copylink')
 }
 
 // 是否显示导航栏（投屏页面隐藏）
